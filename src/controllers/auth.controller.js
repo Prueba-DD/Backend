@@ -2,6 +2,11 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { UsuarioModel } from '../models/usuario.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
+import {
+  validarNombreUsuario,
+  validarTelefono,
+  validarPassword,
+} from '../../docs/CONSTANTES_VALIDACION.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -144,6 +149,131 @@ export const login = async (req, res, next) => {
     const token = buildToken(user);
 
     return successResponse(res, { token, user: toPublicUser(user) }, 'Inicio de sesion exitoso.');
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getPerfil = async (req, res, next) => {
+  try {
+    const id_usuario = req.user?.sub;
+
+    if (!id_usuario) {
+      return errorResponse(res, 'No autorizado.', 401);
+    }
+
+    const user = await UsuarioModel.findByIdWithDetails(id_usuario);
+    if (!user) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
+    return successResponse(res, { user }, 'Perfil obtenido correctamente.', 200);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const updatePerfil = async (req, res, next) => {
+  try {
+    const id_usuario = req.user?.sub;
+
+    if (!id_usuario) {
+      return errorResponse(res, 'No autorizado.', 401);
+    }
+
+    const {
+      nombre,
+      apellido,
+      telefono,
+      avatar_url,
+    } = req.body ?? {};
+
+    if (!validarNombreUsuario(nombre)) {
+      return errorResponse(res, 'El nombre no es valido.', 400);
+    }
+
+    if (!validarNombreUsuario(apellido)) {
+      return errorResponse(res, 'El apellido no es valido.', 400);
+    }
+
+    if (!validarTelefono(telefono)) {
+      return errorResponse(res, 'El telefono no tiene un formato valido.', 400);
+    }
+
+    const payload = {
+      nombre: nombre.trim(),
+      apellido: apellido.trim(),
+      telefono: typeof telefono === 'string' ? (telefono.trim() || null) : null,
+      avatar_url: typeof avatar_url === 'string' ? (avatar_url.trim() || null) : null,
+    };
+
+    const updatedUser = await UsuarioModel.updatePerfil(id_usuario, payload);
+    if (!updatedUser) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
+    return successResponse(res, { user: updatedUser }, 'Perfil actualizado', 200);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const changePassword = async (req, res, next) => {
+  try {
+    const id_usuario = req.user?.sub;
+    const tokenEmail = req.user?.email;
+
+    if (!id_usuario) {
+      return errorResponse(res, 'No autorizado.', 401);
+    }
+
+    const {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    } = req.body ?? {};
+
+    if (
+      typeof currentPassword !== 'string' ||
+      typeof newPassword !== 'string' ||
+      typeof confirmPassword !== 'string'
+    ) {
+      return errorResponse(
+        res,
+        'currentPassword, newPassword y confirmPassword son obligatorios.',
+        400
+      );
+    }
+
+    if (newPassword !== confirmPassword) {
+      return errorResponse(res, 'La nueva contrasena y la confirmacion no coinciden.', 400);
+    }
+
+    if (!validarPassword(newPassword)) {
+      return errorResponse(res, 'La nueva contrasena no cumple con los requisitos de seguridad.', 400);
+    }
+
+    if (!tokenEmail) {
+      return errorResponse(res, 'No autorizado.', 401);
+    }
+
+    const user = await UsuarioModel.findByEmail(tokenEmail);
+    if (!user || Number(user.id_usuario) !== Number(id_usuario)) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
+    if (!verifyPassword(currentPassword, user.password_hash)) {
+      return errorResponse(res, 'La contrasena actual es incorrecta.', 401);
+    }
+
+    const newPasswordHash = hashPassword(newPassword);
+    const updatedUser = await UsuarioModel.updatePassword(id_usuario, newPasswordHash);
+
+    if (!updatedUser) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
+    return successResponse(res, null, 'Contrasena actualizada', 200);
   } catch (error) {
     return next(error);
   }
