@@ -129,6 +129,9 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=tu_email@gmail.com
 SMTP_PASS=tu_app_password
+
+# Frontend
+FRONTEND_URL=http://localhost:5173
 ```
 
 ### `.env.example`
@@ -139,6 +142,7 @@ Se incluye archivo `env.example` con variables requeridas como referencia.
 
 Se agrego el servicio `src/services/email.service.js` para envio de correos con Nodemailer.
 Usa las variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` y expone `enviarCorreo(to, subject, html)`.
+Para recuperacion de contrasena se usa `FRONTEND_URL` para construir el enlace.
 
 ---
 
@@ -241,32 +245,34 @@ backend/
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `POST` | `/auth/register` | ❌ | Registro de nuevo usuario |
-| `POST` | `/auth/login` | ❌ | Login de usuario |
-| `GET` | `/auth/perfil` | ✅ | Obtener perfil del usuario |
-| `PATCH` | `/auth/perfil` | ✅ | Actualizar perfil |
-| `PATCH` | `/auth/cambiar-contrasena` | ✅ | Cambiar contraseña |
+| `POST` | `/auth/register` | No | Registro de nuevo usuario |
+| `POST` | `/auth/login` | No | Login de usuario |
+| `POST` | `/auth/forgot-password` | No | Solicitar recuperacion de contrasena |
+| `POST` | `/auth/reset-password` | No | Restablecer contrasena con token |
+| `GET` | `/auth/perfil` | Si | Obtener perfil del usuario |
+| `PATCH` | `/auth/perfil` | Si | Actualizar perfil |
+| `PATCH` | `/auth/cambiar-contrasena` | Si | Cambiar contraseña |
 
 ### Reportes (`/reportes`)
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/reportes` | ❌ | Listar todos los reportes |
-| `GET` | `/reportes/stats` | ❌ | Estadísticas generales |
-| `GET` | `/reportes/:id` | ❌ | Obtener detalle de reporte |
-| `POST` | `/reportes` | ✅ | Crear nuevo reporte |
-| `PATCH` | `/reportes/:id` | ✅ | Actualizar reporte |
-| `DELETE` | `/reportes/:id` | ✅ | Eliminar reporte |
+| `GET` | `/reportes` | No | Listar todos los reportes |
+| `GET` | `/reportes/stats` | No | Estadísticas generales |
+| `GET` | `/reportes/:id` | No | Obtener detalle de reporte |
+| `POST` | `/reportes` | Si | Crear nuevo reporte |
+| `PATCH` | `/reportes/:id` | Si | Actualizar reporte |
+| `DELETE` | `/reportes/:id` | Si | Eliminar reporte |
 
 ### Categorías (`/categorias`)
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/categorias` | ❌ | Listar todas las categorías |
-| `GET` | `/categorias/:codigo` | ❌ | Obtener detalle de categoría |
-| `GET` | `/categorias/:codigo/reportes` | ❌ | Reportes por categoría |
-| `GET` | `/categorias/estadisticas/resumen` | ❌ | Estadísticas por categoría |
-| `GET` | `/categorias/estadisticas/por-severidad` | ❌ | Estadísticas por severidad |
+| `GET` | `/categorias` | No | Listar todas las categorías |
+| `GET` | `/categorias/:codigo` | No | Obtener detalle de categoría |
+| `GET` | `/categorias/:codigo/reportes` | No | Reportes por categoría |
+| `GET` | `/categorias/estadisticas/resumen` | No | Estadísticas por categoría |
+| `GET` | `/categorias/estadisticas/por-severidad` | No | Estadísticas por severidad |
 
 ### Administracion (`/admin`)
 
@@ -274,18 +280,18 @@ Todas las rutas usan `verifyToken` y `requireRoles('admin')` aplicados en el rou
 
 | Metodo | Ruta | Protegida | Descripcion |
 |--------|------|-----------|-------------|
-| `GET` | `/admin/usuarios/stats` | ✅ | Estadisticas de usuarios y reportes |
-| `GET` | `/admin/usuarios` | ✅ | Listar usuarios con filtros y paginacion |
-| `GET` | `/admin/usuarios/:id` | ✅ | Obtener usuario por id |
-| `PATCH` | `/admin/usuarios/:id/rol` | ✅ | Cambiar rol del usuario |
-| `PATCH` | `/admin/usuarios/:id/estado` | ✅ | Activar o desactivar usuario |
-| `DELETE` | `/admin/usuarios/:id` | ✅ | Eliminar usuario (soft delete) |
+| `GET` | `/admin/usuarios/stats` | Si | Estadisticas de usuarios y reportes |
+| `GET` | `/admin/usuarios` | Si | Listar usuarios con filtros y paginacion |
+| `GET` | `/admin/usuarios/:id` | Si | Obtener usuario por id |
+| `PATCH` | `/admin/usuarios/:id/rol` | Si | Cambiar rol del usuario |
+| `PATCH` | `/admin/usuarios/:id/estado` | Si | Activar o desactivar usuario |
+| `DELETE` | `/admin/usuarios/:id` | Si | Eliminar usuario (soft delete) |
 
 ### Health
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/health` | ❌ | Estado del servidor |
+| `GET` | `/health` | No | Estado del servidor |
 
 ---
 
@@ -318,7 +324,8 @@ Para control de acceso por rol se usa `requireRoles(...)` y debe declararse desp
 - Middleware `requireRoles` para control por rol en rutas protegidas.
 - Modelo de usuario con listados, conteos, cambios de rol/estado y estadisticas para administracion.
 - Controlador y router de administracion con proteccion global de `verifyToken` y `requireRoles('admin')`.
-
+- Servicio de correo con Nodemailer y funcion `enviarCorreo`.
+- Flujo de recuperacion de contrasena con tokens de corta expiracion y envio por correo.
 ---
 
 ##  Base de Datos
@@ -330,6 +337,7 @@ El archivo `src/config/database.js` configura un pool de conexiones para mejor p
 ### Migrations
 
 No se usa herramienta de migrations. El schema se manage manualmente con `green-alert.sql`.
+Para recuperacion de contrasena se requieren las columnas `token_reset` y `token_reset_exp` en `usuarios`.
 
 ### Backup
 
@@ -428,93 +436,7 @@ Este proyecto es parte de un trabajo académico. Ver licencia en el repositorio 
 
 ---
 
-##  Cambios Recientes
-
-### v2.0
-
-- ✅ Agregar 4 nuevas categorías de riesgo ambiental
-- ✅ Implementar endpoints de perfil de usuario
-- ✅ Mejorar manejo de errores
-
-### v1.0
-
-- ✅ Setup inicial del proyecto
-- ✅ Autenticación JWT
-- ✅ CRUD de reportes
-- ✅ Gestión de categorías
-
----
-
-**Última actualización**: March 28, 2026
-|-----------|--------|-----------|-------------|
-| 🌲 Deforestación | `deforestacion` | Alto | Tala o pérdida de cobertura forestal |
-| 🔥 Incendios Forestales | `incendios_forestales` | Crítico | Fuegos descontrolados en bosques |
-| ⚠️ Deslizamientos | `deslizamientos` | Alto | Movimientos en masa del terreno |
-| 💧 Avalanchas Fluviotorrenciales | `avalanchas_fluviotorrenciales` | Crítico | Crecidas súbitas de ríos/quebradas |
-
-### Archivos Nuevos
-
-```
-backend/
-├── src/
-│   ├── models/
-│   │   └── categoria-riesgo.model.js    ← Consultas a BD de categorías
-│   └── controllers/
-│       └── categoria-riesgo.controller.js ← Lógica de categorías
-├── routes/
-│   └── categoria-riesgo.routes.js       ← Endpoints de categorías
-└── docs/
-    └── CONSTANTES_VALIDACION.js         ← Constantes para validaciones
-```
-
-### Integración Requerida
-
-**Paso 1:** Agregar router en `backend/src/app.js`
-
-```javascript
-import categoriaRouter from '../routes/categoria-riesgo.routes.js';
-
-// En la sección de rutas
-app.use('/api/categorias', categoriaRouter);
-```
-
-### Base de Datos
-
-Ejecutar el script `DATABASE_COMPLETA.sql` en tu cliente MySQL/HeidiSQL:
-- Crea tablas: usuarios, reportes, evidencias, categorias_riesgo
-- Inserta 11 categorías (7 existentes + 4 nuevas)
-- Configura índices optimizados
-
-## Endpoints principales
-
-### Autenticación
-- `POST /auth/register`: registro de usuario
-- `POST /auth/login`: inicio de sesion
-
-### Reportes
-- `GET /reportes`: lista de reportes
-- `GET /reportes/:id`: detalle de reporte
-- `POST /reportes`: crear reporte (requiere token)
-- `PATCH /reportes/:id`: actualizar reporte (requiere token)
-- `DELETE /reportes/:id`: eliminar reporte logico (requiere token)
-
-### 🆕 Categorías de Riesgo
-- `GET /api/categorias`: obtener todas las categorías con estadísticas
-- `GET /api/categorias/:codigo`: obtener detalle de una categoría (ej: `deforestacion`)
-- `GET /api/categorias/:codigo/reportes`: listar reportes de una categoría con filtros opcionales
-  - Parámetros: `estado`, `nivel_severidad`, `municipio`, `limit`, `offset`
-- `GET /api/categorias/estadisticas/resumen`: estadísticas de reportes por categoría
-- `GET /api/estadisticas/por-severidad`: estadísticas agrupadas por severidad
-
-### Salud
-- `GET /health`: estado del servidor y conexion a base de datos
-
-##  Crear un Reporte
-
-Todos los tipos de contaminación ahora disponibles:
-
-```javascript
-POST /api/reportes
+*** End Patch
 Content-Type: application/json
 Authorization: Bearer {token}
 
