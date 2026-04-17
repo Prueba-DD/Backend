@@ -190,6 +190,43 @@ export const UsuarioModel = {
     return UsuarioModel.findByIdWithDetails(id_usuario);
   },
 
+  // Guarda token de recuperacion y expiracion
+  setResetToken: async (id_usuario, tokenReset, tokenResetExp) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET token_reset = ?, token_reset_exp = ?, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [tokenReset, tokenResetExp, id_usuario]
+    );
+
+    return result.affectedRows > 0;
+  },
+
+  // Busca usuario por token de recuperacion
+  findByResetToken: async (tokenReset) => {
+    const [rows] = await pool.execute(
+      `SELECT id_usuario, email, token_reset_exp
+       FROM usuarios
+       WHERE token_reset = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [tokenReset]
+    );
+
+    return rows[0] ?? null;
+  },
+
+  // Limpia token de recuperacion
+  clearResetToken: async (id_usuario) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET token_reset = NULL, token_reset_exp = NULL, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [id_usuario]
+    );
+
+    return result.affectedRows > 0;
+  },
+
   // Actualiza rol del usuario
   updateRol: async (id_usuario, rol) => {
     const [result] = await pool.execute(

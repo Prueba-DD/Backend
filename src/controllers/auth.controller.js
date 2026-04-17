@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { UsuarioModel } from '../models/usuario.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
+import { enviarCorreo } from '../services/email.service.js';
 import {
   validarNombreUsuario,
   validarTelefono,
@@ -53,6 +54,19 @@ const verifyPassword = (password, storedHash) => {
   const [salt, key] = storedHash.split(':');
   const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
   return key === derivedKey;
+};
+
+const RESET_TOKEN_MINUTES = 30;
+
+const buildResetToken = () => {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  return { rawToken, tokenHash };
+};
+
+const buildResetLink = (token) => {
+  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  return `${baseUrl}/reset-password?token=${token}`;
 };
 
 export const register = async (req, res, next) => {
@@ -274,6 +288,98 @@ export const changePassword = async (req, res, next) => {
     }
 
     return successResponse(res, null, 'Contrasena actualizada', 200);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body ?? {};
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    if (!normalizedEmail || !EMAIL_REGEX.test(normalizedEmail)) {
+      return errorResponse(res, 'Correo electronico invalido.', 400);
+    }
+
+    const user = await UsuarioModel.findByEmail(normalizedEmail);
+
+    if (user && user.activo) {
+      const { rawToken, tokenHash } = buildResetToken();
+      const tokenExp = new Date(Date.now() + RESET_TOKEN_MINUTES * 60 * 1000);
+
+      await UsuarioModel.setResetToken(user.id_usuario, tokenHash, tokenExp);
+
+      const resetLink = buildResetLink(rawToken);
+      const html = `
+        <p>Se recibio una solicitud para recuperar tu contrasena.</p>
+        <p>Haz clic en el siguiente enlace para crear una nueva contrasena:</p>
+        <p><a href="${resetLink}">${resetLink}</a></p>
+        <p>Este enlace expira en ${RESET_TOKEN_MINUTES} minutos.</p>
+      `;
+
+      await enviarCorreo(user.email, 'Recuperacion de contrasena', html);
+    }
+
+    return successResponse(
+      res,
+      null,
+      'Si el correo existe, recibiras un enlace de recuperacion.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword, confirmPassword } = req.body ?? {};
+
+    if (typeof token !== 'string' || token.length < 10) {
+      return errorResponse(res, 'Token invalido.', 400);
+    }
+
+    if (
+      typeof newPassword !== 'string' ||
+      typeof confirmPassword !== 'string'
+    ) {
+      return errorResponse(
+        res,
+        'newPassword y confirmPassword son obligatorios.',
+        400
+      );
+    }
+
+    if (newPassword !== confirmPassword) {
+      return errorResponse(res, 'La nueva contrasena y la confirmacion no coinciden.', 400);
+    }
+
+    if (!validarPassword(newPassword)) {
+      return errorResponse(res, 'La nueva contrasena no cumple con los requisitos de seguridad.', 400);
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await UsuarioModel.findByResetToken(tokenHash);
+
+    if (!user || !user.token_reset_exp) {
+      return errorResponse(res, 'Token invalido o expirado.', 400);
+    }
+
+    const expiresAt = new Date(user.token_reset_exp);
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+      return errorResponse(res, 'Token invalido o expirado.', 400);
+    }
+
+    const newPasswordHash = hashPassword(newPassword);
+    const updatedUser = await UsuarioModel.updatePassword(user.id_usuario, newPasswordHash);
+
+    if (!updatedUser) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
+    await UsuarioModel.clearResetToken(user.id_usuario);
+
+    return successResponse(res, null, 'Contrasena actualizada correctamente.', 200);
   } catch (error) {
     return next(error);
   }

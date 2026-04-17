@@ -129,6 +129,9 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=tu_email@gmail.com
 SMTP_PASS=tu_app_password
+
+# Frontend
+FRONTEND_URL=http://localhost:5173
 ```
 
 ### `.env.example`
@@ -139,6 +142,7 @@ Se incluye archivo `env.example` con variables requeridas como referencia.
 
 Se agrego el servicio `src/services/email.service.js` para envio de correos con Nodemailer.
 Usa las variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` y expone `enviarCorreo(to, subject, html)`.
+Para recuperacion de contrasena se usa `FRONTEND_URL` para construir el enlace.
 
 ---
 
@@ -241,32 +245,47 @@ backend/
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `POST` | `/auth/register` | ❌ | Registro de nuevo usuario |
-| `POST` | `/auth/login` | ❌ | Login de usuario |
-| `GET` | `/auth/perfil` | ✅ | Obtener perfil del usuario |
-| `PATCH` | `/auth/perfil` | ✅ | Actualizar perfil |
-| `PATCH` | `/auth/cambiar-contrasena` | ✅ | Cambiar contraseña |
+| `POST` | `/auth/register` | No | Registro de nuevo usuario |
+| `POST` | `/auth/login` | No | Login de usuario |
+| `POST` | `/auth/forgot-password` | No | Solicitar recuperacion de contrasena |
+| `POST` | `/auth/reset-password` | No | Restablecer contrasena con token |
+| `GET` | `/auth/perfil` | Si | Obtener perfil del usuario |
+| `PATCH` | `/auth/perfil` | Si | Actualizar perfil |
+| `PATCH` | `/auth/cambiar-contrasena` | Si | Cambiar contraseña |
 
 ### Reportes (`/reportes`)
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/reportes` | ❌ | Listar todos los reportes |
-| `GET` | `/reportes/stats` | ❌ | Estadísticas generales |
-| `GET` | `/reportes/:id` | ❌ | Obtener detalle de reporte |
-| `POST` | `/reportes` | ✅ | Crear nuevo reporte |
-| `PATCH` | `/reportes/:id` | ✅ | Actualizar reporte |
-| `DELETE` | `/reportes/:id` | ✅ | Eliminar reporte |
+| `GET` | `/reportes` | No | Listar todos los reportes |
+| `GET` | `/reportes/stats` | No | Estadísticas generales |
+| `GET` | `/reportes/:id` | No | Obtener detalle de reporte |
+| `POST` | `/reportes` | Si | Crear nuevo reporte |
+| `PATCH` | `/reportes/:id` | Si | Actualizar reporte |
+| `DELETE` | `/reportes/:id` | Si | Eliminar reporte |
 
 ### Categorías (`/categorias`)
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/categorias` | ❌ | Listar todas las categorías |
-| `GET` | `/categorias/:codigo` | ❌ | Obtener detalle de categoría |
-| `GET` | `/categorias/:codigo/reportes` | ❌ | Reportes por categoría |
-| `GET` | `/categorias/estadisticas/resumen` | ❌ | Estadísticas por categoría |
-| `GET` | `/categorias/estadisticas/por-severidad` | ❌ | Estadísticas por severidad |
+| `GET` | `/categorias` | No | Listar todas las categorías |
+| `GET` | `/categorias/:codigo` | No | Obtener detalle de categoría |
+| `GET` | `/categorias/:codigo/reportes` | No | Reportes por categoría |
+| `GET` | `/categorias/estadisticas/resumen` | No | Estadísticas por categoría |
+| `GET` | `/categorias/estadisticas/por-severidad` | No | Estadísticas por severidad |
+
+### Administracion (`/admin`)
+
+Todas las rutas usan `verifyToken` y `requireRoles('admin')` aplicados en el router.
+
+| Metodo | Ruta | Protegida | Descripcion |
+|--------|------|-----------|-------------|
+| `GET` | `/admin/usuarios/stats` | Si | Estadisticas de usuarios y reportes |
+| `GET` | `/admin/usuarios` | Si | Listar usuarios con filtros y paginacion |
+| `GET` | `/admin/usuarios/:id` | Si | Obtener usuario por id |
+| `PATCH` | `/admin/usuarios/:id/rol` | Si | Cambiar rol del usuario |
+| `PATCH` | `/admin/usuarios/:id/estado` | Si | Activar o desactivar usuario |
+| `DELETE` | `/admin/usuarios/:id` | Si | Eliminar usuario (soft delete) |
 
 ### Administracion (`/admin`)
 
@@ -285,7 +304,7 @@ Todas las rutas usan `verifyToken` y `requireRoles('admin')` aplicados en el rou
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/health` | ❌ | Estado del servidor |
+| `GET` | `/health` | No | Estado del servidor |
 
 ---
 
@@ -318,6 +337,8 @@ Para control de acceso por rol se usa `requireRoles(...)` y debe declararse desp
 - Middleware `requireRoles` para control por rol en rutas protegidas.
 - Modelo de usuario con listados, conteos, cambios de rol/estado y estadisticas para administracion.
 - Controlador y router de administracion con proteccion global de `verifyToken` y `requireRoles('admin')`.
+- Servicio de correo con Nodemailer y funcion `enviarCorreo`.
+- Flujo de recuperacion de contrasena con tokens de corta expiracion y envio por correo.
 
 ---
 
@@ -330,6 +351,7 @@ El archivo `src/config/database.js` configura un pool de conexiones para mejor p
 ### Migrations
 
 No se usa herramienta de migrations. El schema se manage manualmente con `green-alert.sql`.
+Para recuperacion de contrasena se requieren las columnas `token_reset` y `token_reset_exp` en `usuarios`.
 
 ### Backup
 

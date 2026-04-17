@@ -3,6 +3,8 @@ import { verifyToken } from '../middlewares/auth.middleware.js';
 import {
 	register,
 	login,
+	forgotPassword,
+	resetPassword,
 	getPerfil,
 	updatePerfil,
 	changePassword,
@@ -12,6 +14,8 @@ const authRouter = Router();
 
 authRouter.post('/register', register);
 authRouter.post('/login', login);
+authRouter.post('/forgot-password', forgotPassword);
+authRouter.post('/reset-password', resetPassword);
 authRouter.get('/perfil', verifyToken, getPerfil);
 authRouter.patch('/perfil', verifyToken, updatePerfil);
 authRouter.patch('/cambiar-contrasena', verifyToken, changePassword);
