@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { UsuarioModel } from '../models/usuario.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
-import { enviarCorreo } from '../services/email.service.js';
+import { enviarCorreo, enviarCorreoBienvenida } from '../services/email.service.js';
 import {
   validarNombreUsuario,
   validarTelefono,
@@ -116,6 +116,15 @@ export const register = async (req, res, next) => {
     }
 
     const token = buildToken(createdUser);
+
+    // Enviar correo de bienvenida de forma no-bloqueante (fire-and-forget)
+    enviarCorreoBienvenida(
+      createdUser.email,
+      createdUser.nombre,
+      createdUser.apellido
+    ).catch((error) => {
+      console.error('Error al enviar correo de bienvenida:', error);
+    });
 
     return successResponse(
       res,
