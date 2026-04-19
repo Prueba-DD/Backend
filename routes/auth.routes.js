@@ -8,6 +8,8 @@ import {
 	getPerfil,
 	updatePerfil,
 	changePassword,
+	sendVerificationOtp,
+	verifyEmailOtp,
 } from '../src/controllers/auth.controller.js';
 
 const authRouter = Router();
@@ -19,5 +21,9 @@ authRouter.post('/reset-password', resetPassword);
 authRouter.get('/perfil', verifyToken, getPerfil);
 authRouter.patch('/perfil', verifyToken, updatePerfil);
 authRouter.patch('/cambiar-contrasena', verifyToken, changePassword);
+
+// Rutas para verificación de email con OTP
+authRouter.post('/enviar-verificacion', verifyToken, sendVerificationOtp);
+authRouter.post('/verificar-email', verifyToken, verifyEmailOtp);
 
 export default authRouter;

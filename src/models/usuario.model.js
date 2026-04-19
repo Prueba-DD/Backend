@@ -292,4 +292,85 @@ export const UsuarioModel = {
     );
     return result.affectedRows > 0;
   },
+
+  // ============ MÉTODOS PARA OTP DE VERIFICACIÓN DE EMAIL ============
+
+  // Guarda código OTP hasheado y fecha de expiración
+  setOtp: async (id_usuario, otpCodeHash, otpExp) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET otp_code_hash = ?, otp_exp = ?, otp_attempts = 0, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [otpCodeHash, otpExp, id_usuario]
+    );
+    return result.affectedRows > 0;
+  },
+
+  // Limpia OTP del usuario
+  clearOtp: async (id_usuario) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET otp_code_hash = NULL, otp_exp = NULL, otp_attempts = 0, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [id_usuario]
+    );
+    return result.affectedRows > 0;
+  },
+
+  // Busca usuario por OTP hasheado
+  findByOtpHash: async (otpCodeHash) => {
+    const [rows] = await pool.execute(
+      `SELECT id_usuario, email, otp_exp, otp_attempts, email_verificado
+       FROM usuarios
+       WHERE otp_code_hash = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [otpCodeHash]
+    );
+    return rows[0] ?? null;
+  },
+
+  // Incrementa contador de intentos fallidos de OTP
+  incrementOtpAttempts: async (id_usuario) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET otp_attempts = otp_attempts + 1
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [id_usuario]
+    );
+    return result.affectedRows > 0;
+  },
+
+  // Marca email como verificado
+  verifyEmail: async (id_usuario) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET email_verificado = 1, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [id_usuario]
+    );
+    return result.affectedRows > 0;
+  },
+
+  // Obtiene timestamp del último reenvío de OTP
+  getOtpLastRequest: async (id_usuario) => {
+    const [rows] = await pool.execute(
+      `SELECT otp_last_request
+       FROM usuarios
+       WHERE id_usuario = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [id_usuario]
+    );
+    return rows[0]?.otp_last_request ?? null;
+  },
+
+  // Actualiza timestamp del último reenvío de OTP
+  updateOtpLastRequest: async (id_usuario) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET otp_last_request = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [id_usuario]
+    );
+    return result.affectedRows > 0;
+  },
 };
