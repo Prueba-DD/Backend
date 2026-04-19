@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { UsuarioModel } from '../models/usuario.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
-import { enviarCorreo } from '../services/email.service.js';
+import { enviarCorreo, enviarCorreoBienvenida, enviarCorreoVerificacion } from '../services/email.service.js';
 import {
   validarNombreUsuario,
   validarTelefono,
@@ -67,6 +67,20 @@ const buildResetToken = () => {
 const buildResetLink = (token) => {
   const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   return `${baseUrl}/reset-password?token=${token}`;
+};
+
+const VERIFICATION_TOKEN_HOURS = 24;
+
+const buildVerificationToken = () => {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  return { rawToken, tokenHash };
+};
+
+const getVerificationTokenExpiration = () => {
+  const exp = new Date();
+  exp.setHours(exp.getHours() + VERIFICATION_TOKEN_HOURS);
+  return exp;
 };
 
 export const register = async (req, res, next) => {
@@ -157,6 +171,15 @@ export const register = async (req, res, next) => {
     }
 
     const token = buildToken(createdUser);
+
+    // Enviar correo de bienvenida de forma no-bloqueante (fire-and-forget)
+    enviarCorreoBienvenida(
+      createdUser.email,
+      createdUser.nombre,
+      createdUser.apellido
+    ).catch((error) => {
+      console.error('Error al enviar correo de bienvenida:', error);
+    });
 
     return successResponse(
       res,
