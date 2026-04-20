@@ -88,59 +88,10 @@ export const getReportes = async (req, res, next) => {
   }
 };
 
-export const getMisReportes = async (req, res, next) => {
-  try {
-    const id_usuario = req.user?.sub;
-
-    if (!id_usuario) {
-      return errorResponse(res, 'No autorizado.', 401);
-    }
-
-    const { limit = 20, offset = 0 } = req.query;
-
-    const reportes = await ReporteModel.findByUsuario(id_usuario, {
-      limit: Number(limit),
-      offset: Number(offset),
-    });
-
-    const total = await ReporteModel.countByUsuario(id_usuario);
-
-    return successResponse(
-      res,
-      { reportes, total },
-      'Reportes del usuario obtenidos correctamente.',
-      200
-    );
-  } catch (error) {
-    return next(error);
-  }
-};
-
 export const getStats = async (req, res, next) => {
   try {
     const stats = await ReporteModel.getStats();
     return successResponse(res, { stats });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-export const getMisReportes = async (req, res, next) => {
-  try {
-    if (!req.user || !req.user.sub) {
-      return errorResponse(res, 'No autorizado', 401);
-    }
-
-    const id_usuario = req.user.sub;
-    const { limit = 20, offset = 0 } = req.query;
-    
-    const reportes = await ReporteModel.findByUsuario(id_usuario, {
-      limit: Number(limit),
-      offset: Number(offset),
-    });
-    const total = await ReporteModel.countByUsuario(id_usuario);
-    
-    return successResponse(res, { reportes, total });
   } catch (error) {
     return next(error);
   }
@@ -160,16 +111,12 @@ export const updateReporte = async (req, res, next) => {
       return errorResponse(res, 'No tienes permiso para editar este reporte.', 403);
     }
 
-    // Owners solo pueden editar reportes en estado 'pendiente'
+    // Citizens can only edit their own reports while still pending
     if (isOwner && !isMod && reporte.estado !== 'pendiente') {
-      return errorResponse(
-        res,
-        'No puedes editar un reporte que ya está en revisión o procesado.',
-        403
-      );
+      return errorResponse(res, 'Solo puedes editar reportes en estado pendiente.', 403);
     }
 
-    // Owners can edit content fields; mods/admins can also change estado y comentario_moderacion
+    // Owners can edit content fields; mods/admins can also change estado and add a moderation comment
     const allowed = isOwner
       ? ['titulo', 'descripcion', 'direccion', 'municipio', 'departamento']
       : ['estado', 'nivel_severidad', 'titulo', 'descripcion', 'direccion', 'municipio', 'departamento', 'comentario_moderacion'];
@@ -185,12 +132,9 @@ export const updateReporte = async (req, res, next) => {
       return errorResponse(res, 'No se enviaron campos válidos para actualizar.', 400);
     }
 
-    // Validar que comentario_moderacion es obligatorio si se rechaza
-    if (isMod && campos.estado === 'rechazado') {
-      const comentario = campos.comentario_moderacion?.trim();
-      if (!comentario) {
-        return errorResponse(res, 'El comentario es obligatorio al rechazar un reporte.', 400);
-      }
+    // Moderation comment is required when rejecting a report
+    if (campos.estado === 'rechazado' && !campos.comentario_moderacion?.trim()) {
+      return errorResponse(res, 'Debes incluir un comentario de moderación al rechazar un reporte.', 422);
     }
 
     await ReporteModel.update(id, campos);
@@ -215,17 +159,32 @@ export const deleteReporte = async (req, res, next) => {
       return errorResponse(res, 'No tienes permiso para eliminar este reporte.', 403);
     }
 
-    // Owners solo pueden eliminar reportes en estado 'pendiente'
+    // Citizens can only delete their own reports while still pending
     if (isOwner && !isMod && reporte.estado !== 'pendiente') {
-      return errorResponse(
-        res,
-        'No puedes eliminar un reporte que ya está en revisión o procesado.',
-        403
-      );
+      return errorResponse(res, 'Solo puedes eliminar reportes en estado pendiente.', 403);
     }
 
     await ReporteModel.remove(id);
     return successResponse(res, null, 'Reporte eliminado.');
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getMisReportes = async (req, res, next) => {
+  try {
+    const id_usuario = req.user?.sub;
+    if (!id_usuario) return errorResponse(res, 'No autorizado.', 401);
+
+    const { limit = 20, offset = 0 } = req.query;
+    const reportes = await ReporteModel.findByUsuario(id_usuario, {
+      limit:  Number(limit),
+      offset: Number(offset),
+    });
+
+    const [{ total }] = await ReporteModel.countByUsuario(id_usuario);
+
+    return successResponse(res, { reportes, total });
   } catch (error) {
     return next(error);
   }
