@@ -1,10 +1,10 @@
-# 🧪 Tests - Backend GreenAlert
+# [TESTS] Tests - Backend GreenAlert
 
 Tests automatizados y documentación centralizada para validar funcionalidades del Backend.
 
 ---
 
-## 📁 Estructura
+## [STRUCTURE] Estructura
 
 ```
 tests/
@@ -20,7 +20,7 @@ tests/
 ├── run-all.js                     (Test runner)
 └── README.md                       (Este archivo)
 
-docs/tests/                         📍 DOCUMENTACIÓN CENTRALIZADA
+docs/tests/                         [DOCS] DOCUMENTACIÓN CENTRALIZADA
 ├── INDEX.md                        (Índice de todos los tests)
 ├── EMAIL_CONFIG.md                 (Detalles - Config centralizada)
 ├── EMAIL_VERIFICATION.md           (Detalles - Verificación email)
@@ -77,7 +77,7 @@ node tests/auth/register.test.js
 
 ---
 
-## 📚 Documentación Detallada
+## [DOCS] Documentación Detallada
 
 Cada test tiene documentación técnica completa en `docs/tests/`:
 
@@ -98,7 +98,7 @@ Cada test tiene documentación técnica completa en `docs/tests/`:
 
 ---
 
-## ✅ Ejemplo de Ejecución
+## [PASS] Ejemplo de Ejecución
 
 ### Input
 ```bash
@@ -107,7 +107,7 @@ node tests/run-all.js config
 
 ### Output
 ```
-🧪 TESTS: Configuración de Email (email.config.js)
+[TESTS] TESTS: Configuración de Email (email.config.js)
 
     "test:email": "node tests/email/verification.test.js",
     "test:auth": "node tests/auth/register.test.js"

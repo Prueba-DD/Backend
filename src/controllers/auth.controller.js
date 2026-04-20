@@ -7,7 +7,7 @@ import {
   validarNombreUsuario,
   validarTelefono,
   validarPassword,
-} from '../../docs/CONSTANTES_VALIDACION.js';
+} from '../utils/constantes-validacion.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -154,7 +154,7 @@ export const register = async (req, res, next) => {
           
           <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
             <p style="color: #856404; margin: 0; font-size: 14px;">
-              <strong>⚠️ Seguridad:</strong> Nunca compartas este código con nadie. El equipo de Green Alert nunca te pedirá este código.
+              <strong>[SECURITY]</strong> Nunca compartas este código con nadie. El equipo de Green Alert nunca te pedirá este código.
             </p>
           </div>
           
@@ -524,7 +524,7 @@ export const sendVerificationOtp = async (req, res, next) => {
         
         <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
           <p style="color: #856404; margin: 0; font-size: 14px;">
-            <strong>⚠️ Seguridad:</strong> Nunca compartas este código con nadie. El equipo de Green Alert nunca te pedirá este código.
+            <strong>[SECURITY]</strong> Nunca compartas este código con nadie. El equipo de Green Alert nunca te pedirá este código.
           </p>
         </div>
         
@@ -613,6 +613,35 @@ export const verifyEmailOtp = async (req, res, next) => {
       res,
       { user: toPublicUser(verifiedUser) },
       'Email verificado correctamente.',
+      200
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============ HANDLER PARA ACTUALIZAR PREFERENCIAS DE NOTIFICACIONES ============
+
+export const updateNotifications = async (req, res, next) => {
+  try {
+    const id_usuario = req.user?.sub;
+    if (!id_usuario) return errorResponse(res, 'No autorizado.', 401);
+
+    const { preferences } = req.body ?? {};
+    if (!preferences || typeof preferences !== 'object')
+      return errorResponse(res, 'Las preferencias deben ser un objeto.', 400);
+
+    // Validar estructura de preferencias
+    const validKeys = ['email_alerts', 'push_notifications', 'report_updates', 'weekly_summary'];
+    const validatedPreferences = {};
+    for (const key of validKeys) {
+      if (key in preferences) validatedPreferences[key] = Boolean(preferences[key]);
+    }
+
+    return successResponse(
+      res,
+      { preferences: validatedPreferences },
+      'Preferencias de notificaciones actualizadas.',
       200
     );
   } catch (error) {

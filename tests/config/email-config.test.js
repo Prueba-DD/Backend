@@ -14,16 +14,16 @@ const testResults = [];
 const test = (name, fn) => {
   try {
     fn();
-    testResults.push({ name, status: '✅ PASS', error: null });
-    console.log(`✅ ${name}`);
+    testResults.push({ name, status: '[PASS] PASS', error: null });
+    console.log(`[PASS] ${name}`);
   } catch (error) {
-    testResults.push({ name, status: '❌ FAIL', error: error.message });
-    console.error(`❌ ${name}`);
+    testResults.push({ name, status: '[FAIL] FAIL', error: error.message });
+    console.error(`[FAIL] ${name}`);
     console.error(`   Error: ${error.message}`);
   }
 };
 
-console.log('\n📧 TESTS: Configuración de Email (email.config.js)\n');
+console.log('\n[CONFIG] TESTS: Configuración de Email (email.config.js)\n');
 console.log('=' .repeat(60));
 
 // Test 1: Obtener configuración sin errores
@@ -102,16 +102,16 @@ test('Estructura de configuración completa', () => {
 
 // Resumen
 console.log('\n' + '='.repeat(60));
-console.log('\n📊 RESUMEN DE TESTS\n');
+console.log('\n[SUMMARY] RESUMEN DE TESTS\n');
 
 const total = testResults.length;
-const passed = testResults.filter(r => r.status === '✅ PASS').length;
-const failed = testResults.filter(r => r.status === '❌ FAIL').length;
+const passed = testResults.filter(r => r.status === '[PASS] PASS').length;
+const failed = testResults.filter(r => r.status === '[FAIL] FAIL').length;
 
 testResults.forEach(r => {
   console.log(`${r.status} ${r.name}`);
   if (r.error) {
-    console.log(`   ⚠️  ${r.error}`);
+    console.log(`   [WARNING] ${r.error}`);
   }
 });
 
@@ -119,9 +119,9 @@ console.log('\n' + '='.repeat(60));
 console.log(`Total: ${total} | Pasado: ${passed} | Fallido: ${failed}`);
 
 if (failed === 0) {
-  console.log('\n✅ TODOS LOS TESTS PASARON\n');
+  console.log('\n[PASS] TODOS LOS TESTS PASARON\n');
   process.exit(0);
 } else {
-  console.log(`\n❌ ${failed} TEST(S) FALLARON\n`);
+  console.log(`\n[FAIL] ${failed} TEST(S) FALLARON\n`);
   process.exit(1);
 }

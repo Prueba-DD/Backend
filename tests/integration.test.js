@@ -23,11 +23,11 @@ const colors = {
 };
 
 const log = {
-  test: (msg) => console.log(`${colors.cyan}✓ TEST: ${msg}${colors.reset}`),
-  pass: (msg) => console.log(`${colors.green}✅ PASS: ${msg}${colors.reset}`),
-  fail: (msg) => console.log(`${colors.red}❌ FAIL: ${msg}${colors.reset}`),
-  info: (msg) => console.log(`${colors.blue}ℹ INFO: ${msg}${colors.reset}`),
-  warn: (msg) => console.log(`${colors.yellow}⚠ WARN: ${msg}${colors.reset}`),
+  test: (msg) => console.log(`${colors.cyan}[TEST] TEST: ${msg}${colors.reset}`),
+  pass: (msg) => console.log(`${colors.green}[PASS] PASS: ${msg}${colors.reset}`),
+  fail: (msg) => console.log(`${colors.red}[FAIL] FAIL: ${msg}${colors.reset}`),
+  info: (msg) => console.log(`${colors.blue}[INFO] INFO: ${msg}${colors.reset}`),
+  warn: (msg) => console.log(`${colors.yellow}[WARN] WARN: ${msg}${colors.reset}`),
   section: (msg) => console.log(`\n${colors.cyan}═══════════════════════════════════\n  ${msg}\n═══════════════════════════════════${colors.reset}\n`),
 };
 
