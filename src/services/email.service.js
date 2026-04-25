@@ -133,7 +133,7 @@ const generarTemplateBienvenida = (nombre, apellido) => {
               <li>📍 Reportar riesgos ambientales en tu zona</li>
               <li>🗺️ Visualizar reportes en el mapa interactivo</li>
               <li>💬 Contribuir a la moderación comunitaria</li>
-              <li>📊 Acceder a tu panel de usuario</li>
+              <li>[DASHBOARD] Acceder a tu panel de usuario</li>
             </ul>
           </div>
           

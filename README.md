@@ -141,12 +141,12 @@ Se incluye archivo `env.example` con variables requeridas como referencia.
 
 ### Configuración Centralizada de Email
 
-#### ✓ Ubicación
+#### [CONFIG] Ubicación
 - **Config centralizado:** `src/config/email.config.js`
 - **Servicio Email:** `src/services/email.service.js`
 - **Variables requeridas:** `.env` (ver sección anterior)
 
-#### ✓ Variables de Entorno
+#### [CONFIG] Variables de Entorno
 
 | Variable | Descripción | Ejemplo |
 |---|---|---|
@@ -156,41 +156,41 @@ Se incluye archivo `env.example` con variables requeridas como referencia.
 | `EMAIL_PASS` | Contraseña SMTP | `password123` |
 | `EMAIL_FROM` | Email remitente | `noreply@greenalert.com` |
 
-#### ✓ Validación Automática
+#### [CONFIG] Validación Automática
 
 El servidor valida automáticamente la configuración de email al iniciar:
 
 ```bash
-✓ Configuración de email validada correctamente
+[PASS] Configuración de email validada correctamente
 ```
 
 Si falta alguna variable, mostrará error:
 
 ```bash
-✗ Error en configuración de email: Variables de entorno para Email no configuradas: EMAIL_HOST, EMAIL_PASS
+[FAIL] Error en configuración de email: Variables de entorno para Email no configuradas: EMAIL_HOST, EMAIL_PASS
 ```
 
-#### ✓ Uso en Código
+#### [CONFIG] Uso en Código
 
 ```javascript
-// NO hacer esto (hardcodeado ❌)
+// NO hacer esto (hardcodeado [BAD])
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   auth: { user: "email@gmail.com", pass: "password" }
 });
 
-// Hacer esto (centralizado ✅)
+// Hacer esto (centralizado [GOOD])
 import emailConfig from './config/email.config.js';
 const { host, port, user, pass } = emailConfig;
 ```
 
-#### ✓ Seguridad
+#### [CONFIG] Seguridad
 
-- ✅ Nunca subir credenciales reales al repositorio
-- ✅ Usar `.env.example` con valores de ejemplo
-- ✅ Validación automática al iniciar servidor
-- ✅ Variables centralizadas en `email.config.js`
-- ✅ Formato de email validado (EMAIL_FROM)
+- [GOOD] Nunca subir credenciales reales al repositorio
+- [GOOD] Usar `.env.example` con valores de ejemplo
+- [GOOD] Validación automática al iniciar servidor
+- [GOOD] Variables centralizadas en `email.config.js`
+- [GOOD] Formato de email validado (EMAIL_FROM)
 
 ---
 
@@ -341,12 +341,12 @@ Todas las rutas usan `verifyToken` y `requireRoles('admin')` aplicados en el rou
 
 | Metodo | Ruta | Protegida | Descripcion |
 |--------|------|-----------|-------------|
-| `GET` | `/admin/usuarios/stats` | ✅ | Estadisticas de usuarios y reportes |
-| `GET` | `/admin/usuarios` | ✅ | Listar usuarios con filtros y paginacion |
-| `GET` | `/admin/usuarios/:id` | ✅ | Obtener usuario por id |
-| `PATCH` | `/admin/usuarios/:id/rol` | ✅ | Cambiar rol del usuario |
-| `PATCH` | `/admin/usuarios/:id/estado` | ✅ | Activar o desactivar usuario |
-| `DELETE` | `/admin/usuarios/:id` | ✅ | Eliminar usuario (soft delete) |
+| `GET` | `/admin/usuarios/stats` | [YES] | Estadisticas de usuarios y reportes |
+| `GET` | `/admin/usuarios` | [YES] | Listar usuarios con filtros y paginacion |
+| `GET` | `/admin/usuarios/:id` | [YES] | Obtener usuario por id |
+| `PATCH` | `/admin/usuarios/:id/rol` | [YES] | Cambiar rol del usuario |
+| `PATCH` | `/admin/usuarios/:id/estado` | [YES] | Activar o desactivar usuario |
+| `DELETE` | `/admin/usuarios/:id` | [YES] | Eliminar usuario (soft delete) |
 
 ### Health
 
