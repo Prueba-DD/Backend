@@ -284,15 +284,133 @@ Si faltan credenciales:
 
 #### [CONFIG] Endpoints de Autenticación
 
-```javascript
-// OAuth callback (implementación pendiente)
-GET /api/auth/google/callback
-  Parámetros: code (authorization code from Google)
-  Retorna: JWT token + user info
+AUTENTICACIÓN TRADICIONAL:
 
-// Google login (implementación pendiente)
+```
+POST /api/auth/register
+  Body: { nombre, apellido, email, password, telefono? }
+  Retorna: { token, user }
+
+POST /api/auth/login
+  Body: { email, password }
+  Retorna: { token, user }
+```
+
+AUTENTICACIÓN CON GOOGLE OAUTH:
+
+```
 POST /api/auth/google/login
-  Body: { token: google_access_token }
+  Body: { id_token }  (ID token obtenido del cliente)
+  Retorna: { token, user }
+  Descripción: Verifica el id_token de Google y autentica al usuario
+
+GET /api/auth/google/callback?code=...
+  Parámetros: code (código de autorización de Google)
+  Retorna: Redirige al frontend con token y usuario
+  Descripción: Callback para el flujo Authorization Code de Google
+```
+
+GESTIÓN DE CUENTA:
+
+```
+GET /api/auth/perfil (requiere JWT)
+  Retorna: { user }
+
+PATCH /api/auth/perfil (requiere JWT)
+  Body: { nombre?, apellido?, telefono?, avatar_url? }
+  Retorna: { user }
+
+PATCH /api/auth/cambiar-contrasena (requiere JWT)
+  Body: { old_password, new_password }
+  Retorna: { message }
+
+POST /api/auth/forgot-password
+  Body: { email }
+  Retorna: { message }
+
+POST /api/auth/reset-password
+  Body: { token, new_password }
+  Retorna: { message }
+
+POST /api/auth/enviar-verificacion (requiere JWT)
+  Retorna: { message, expiresIn }
+
+POST /api/auth/verificar-email (requiere JWT)
+  Body: { otp_code }
+  Retorna: { user }
+```
+
+---
+
+## Autenticación Social: Google OAuth 2.0
+
+### Flujo de Autenticación
+
+El backend soporta dos flujos de Google OAuth:
+
+#### Flujo 1: ID Token (Recomendado para SPAs)
+
+1. Frontend: Usa Google Sign-In Button
+2. Google devuelve `id_token` al cliente
+3. Cliente envía POST a `/api/auth/google/login` con `id_token`
+4. Backend verifica el token y crea/actualiza usuario
+5. Backend retorna JWT de GreenAlert
+
+```
+Frontend -> Google Sign-In Button -> id_token -> POST /api/auth/google/login -> JWT
+```
+
+#### Flujo 2: Authorization Code
+
+1. Frontend: Redirige a Google OAuth consent screen
+2. Usuario autoriza
+3. Google redirige a `/api/auth/google/callback?code=...`
+4. Backend intercambia código por tokens
+5. Backend obtiene info del usuario
+6. Backend crea/actualiza usuario
+7. Backend redirige al frontend con JWT
+
+```
+Frontend -> Google OAuth -> code -> /api/auth/google/callback -> JWT (en URL)
+```
+
+### Datos del Usuario desde Google
+
+Cuando un usuario se autentica con Google, GreenAlert:
+
+- Extrae: `google_id`, `email`, `nombre`, `apellido`, `avatar_url`
+- Crea nuevo usuario si no existe con ese email
+- Marca email como verificado automáticamente
+- Guarda `google_id` para vincular en futuros logins
+- Retorna JWT válido por 7 días
+
+### Integración Frontend
+
+```javascript
+// Usando Google Sign-In Button
+const handleGoogleSignIn = async (credentialResponse) => {
+  const response = await fetch('/api/auth/google/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_token: credentialResponse.credential }),
+  });
+  
+  const { token, user } = await response.json();
+  
+  // Guardar JWT y usuario
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(user));
+};
+```
+
+### Seguridad
+
+- Tokens de Google se verifican en servidor
+- Email se marca como verificado automáticamente
+- google_id se guarda para rastrear origen de autenticación
+- Tokens JWT tienen expiración de 7 días
+- Contraseñas no son requeridas para cuentas de Google
+
   Retorna: JWT token + user info
 ```
 
