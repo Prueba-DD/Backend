@@ -192,7 +192,11 @@ const { host, port, user, pass } = emailConfig;
 - [GOOD] Variables centralizadas en `email.config.js`
 - [GOOD] Formato de email validado (EMAIL_FROM)
 
+ CVEGOA
 ### [OAUTH] Configuración de Google OAuth 2.0
+=======
+### 🔐 Configuración de Google OAuth 2.0
+ main
 
 #### [CONFIG] Variables de Entorno
 
@@ -205,6 +209,7 @@ GOOGLE_CLIENT_SECRET=your_client_secret_here
 GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 ```
 
+ CVEGOA
 #### [CONFIG] Paso 1: Obtener Credenciales
 
 Debes obtener las credenciales reales de Google Cloud Console:
@@ -256,19 +261,38 @@ Si hay errores:
 [ERROR] Error: Variables de entorno para Google OAuth no configuradas...
 ```
 -> Revisa que los valores en `.env` sean correctos y reinicia
+=======
+#### [CONFIG] Obtener Credenciales
+
+Sigue la **guía completa** en: [`GOOGLE_OAUTH_SETUP.md`](../GOOGLE_OAUTH_SETUP.md)
+
+**Resumen rápido:**
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
+2. Crea un nuevo proyecto
+3. Habilita "Google+ API"
+4. Configura pantalla de consentimiento OAuth
+5. Crea credenciales (Client ID y Secret)
+6. Copia los valores a `.env`
+ main
 
 #### [CONFIG] Ubicación de Configuración
 
 - **Config centralizado:** `src/config/google.config.js`
+ CVEGOA
 - **Script de validación:** `validate-google-credentials.js`
 - **Variables requeridas:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - **Optional:** `GOOGLE_CALLBACK_URL` (default: `http://localhost:3000/api/auth/google/callback`)
+=======
+- **Validación automática:** Al iniciar servidor
+- **Variables requeridas:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+ main
 
 #### [CONFIG] Validación Automática
 
 El servidor valida automáticamente la configuración al iniciar:
 
 ```bash
+ CVEGOA
 npm run dev
 
 # Salida:
@@ -276,6 +300,12 @@ npm run dev
 ```
 
 Si faltan credenciales:
+=======
+✓ Google OAuth configuration loaded successfully
+```
+
+Si faltan credenciales, mostrará advertencia con instrucciones:
+ main
 
 ```bash
 ⚠ Google OAuth not yet configured: Variables de entorno para Google OAuth no configuradas...
