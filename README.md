@@ -134,6 +134,12 @@ EMAIL_FROM=noreply@greenalert.com
 
 # Frontend
 FRONTEND_URL=http://localhost:5173
+
+# Facebook OAuth
+FACEBOOK_APP_ID=your_facebook_app_id
+FACEBOOK_APP_SECRET=your_facebook_app_secret
+FACEBOOK_CALLBACK_URL=http://localhost:3000/api/auth/facebook/callback
+FACEBOOK_GRAPH_API_VERSION=v20.0
 ```
 
 ### `.env.example`
@@ -311,6 +317,49 @@ Si faltan credenciales, mostrará advertencia con instrucciones:
 ```bash
 ⚠ Google OAuth not yet configured: Variables de entorno para Google OAuth no configuradas...
 ```
+
+### Configuracion Facebook OAuth
+
+Esta configuracion permite guardar en el backend las credenciales de una app creada en Meta for Developers. En esta tarea solo se prepara la configuracion y la validacion de credenciales; el flujo completo de login con Facebook se puede implementar despues.
+
+#### Crear app en Meta for Developers
+
+1. Entrar a [Meta for Developers](https://developers.facebook.com/).
+2. Crear una nueva app.
+3. Seleccionar un caso de uso relacionado con autenticacion o inicio de sesion.
+4. Agregar el producto `Facebook Login`.
+5. Configurar la URL de callback:
+
+```bash
+http://localhost:3000/api/auth/facebook/callback
+```
+
+6. Copiar el `App ID` y el `App Secret`.
+7. Guardar esos valores en el archivo `.env`.
+
+#### Variables de entorno
+
+```env
+FACEBOOK_APP_ID=your_facebook_app_id
+FACEBOOK_APP_SECRET=your_facebook_app_secret
+FACEBOOK_CALLBACK_URL=http://localhost:3000/api/auth/facebook/callback
+FACEBOOK_GRAPH_API_VERSION=v20.0
+```
+
+#### Archivos de configuracion
+
+- `src/config/facebook.config.js`: centraliza y valida las variables de Facebook OAuth.
+- `validate-facebook-credentials.js`: permite verificar que las credenciales existan y no sean valores de ejemplo.
+
+#### Validar credenciales
+
+Ejecuta este comando desde la carpeta `Backend`:
+
+```bash
+node validate-facebook-credentials.js
+```
+
+Si todo esta configurado correctamente, el script muestra que las credenciales fueron cargadas. Si falta una variable o se dejaron valores de ejemplo, el script muestra el error para corregir el `.env`.
 
 #### [CONFIG] Endpoints de Autenticación
 
