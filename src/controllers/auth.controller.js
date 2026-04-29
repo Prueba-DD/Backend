@@ -869,6 +869,12 @@ const findOrCreateFacebookUser = async ({ email, nombre, apellido, avatar_url })
   let user = await UsuarioModel.findByEmail(email);
 
   if (user) {
+    if (!user.activo) {
+      const error = new Error('Cuenta desactivada. Contacta al administrador.');
+      error.statusCode = 403;
+      throw error;
+    }
+
     await UsuarioModel.updateUltimoAcceso(user.id_usuario);
     return user;
   }
@@ -920,7 +926,16 @@ export const facebookLogin = async (req, res, next) => {
       return errorResponse(res, 'Token de Facebook invalido.', 401);
     }
 
-    const user = await findOrCreateFacebookUser(facebookUser);
+    let user;
+    try {
+      user = await findOrCreateFacebookUser(facebookUser);
+    } catch (error) {
+      if (error.statusCode) {
+        return errorResponse(res, error.message, error.statusCode);
+      }
+      throw error;
+    }
+
     if (!user) {
       return errorResponse(res, 'No fue posible autenticar con Facebook.', 400);
     }
@@ -959,7 +974,16 @@ export const facebookCallback = async (req, res, next) => {
       return errorResponse(res, 'No fue posible obtener informacion de Facebook.', 400);
     }
 
-    const user = await findOrCreateFacebookUser(facebookUser);
+    let user;
+    try {
+      user = await findOrCreateFacebookUser(facebookUser);
+    } catch (error) {
+      if (error.statusCode) {
+        return errorResponse(res, error.message, error.statusCode);
+      }
+      throw error;
+    }
+
     if (!user) {
       return errorResponse(res, 'No fue posible autenticar con Facebook.', 400);
     }
