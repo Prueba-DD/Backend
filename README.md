@@ -637,16 +637,38 @@ Todas las rutas usan `verifyToken` y `requireRoles('admin')` aplicados en el rou
 
 ---
 
-##  Autenticación
+## Autenticación
 
 ### JWT Token
 
-Se utiliza **JWT (JSON Web Tokens)** para autenticación:
+Se utiliza JWT para identificar al usuario despues de iniciar sesion. El token se genera en el backend cuando las credenciales son correctas.
 
-1. Usuario se autentica con `POST /auth/login`
-2. Backend retorna un token JWT válido por 7 días
-3. Cliente incluye token en header: `Authorization: Bearer <token>`
-4. Servidor verifica token en cada request protegido
+Flujo basico:
+
+1. El usuario envia `email` y `password` a `POST /auth/login`.
+2. El backend valida que el usuario exista, este activo y que la contrasena sea correcta.
+3. Si la autenticacion es exitosa, se genera un JWT con estos datos: `sub`, `uuid`, `rol` y `email`.
+4. El backend valida el token generado antes de enviarlo en la respuesta.
+5. El cliente debe enviar el token en las rutas protegidas usando el header `Authorization`.
+
+La duracion del token se configura con `JWT_EXPIRES_IN`. Si no se define, se usa `7d`.
+
+Respuesta esperada en login o registro exitoso:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "token": "jwt_generado",
+    "user": {
+      "id_usuario": 1,
+      "email": "usuario@correo.com",
+      "rol": "ciudadano"
+    }
+  },
+  "message": "Inicio de sesion exitoso."
+}
+```
 
 ### Headers Requeridos
 
@@ -658,6 +680,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 El middleware `verifyToken` valida JWT en rutas protegidas.
 Para control de acceso por rol se usa `requireRoles(...)` y debe declararse despues de `verifyToken`.
+
+Si el token no se envia, el backend responde con estado `401`.
+Si el token es invalido o ya expiro, el backend responde con estado `403`.
 
 ---
 
