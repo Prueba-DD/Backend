@@ -14,6 +14,9 @@ import {
 	googleLogin,
 	googleCallback,
 	getGoogleAuthUrl,
+	facebookLogin,
+	facebookCallback,
+	getFacebookAuthUrl,
 } from '../src/controllers/auth.controller.js';
 
 const authRouter = Router();
@@ -35,5 +38,10 @@ authRouter.post('/verificar-email', verifyToken, verifyEmailOtp);
 authRouter.get('/google/url', getGoogleAuthUrl);
 authRouter.post('/google/login', googleLogin);
 authRouter.get('/google/callback', googleCallback);
+
+// Rutas para autenticacion con Facebook OAuth
+authRouter.get('/facebook/url', getFacebookAuthUrl);
+authRouter.post('/facebook/login', facebookLogin);
+authRouter.get('/facebook/callback', facebookCallback);
 
 export default authRouter;

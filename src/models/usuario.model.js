@@ -427,4 +427,23 @@ export const UsuarioModel = {
     );
     return result.affectedRows > 0;
   },
+
+  // Crea usuario desde Facebook OAuth usando email verificado por Facebook
+  createFromFacebook: async ({ email, nombre, apellido, avatar_url }) => {
+    const uuid = randomUUID();
+
+    try {
+      const [result] = await pool.execute(
+        `INSERT INTO usuarios (uuid, email, nombre, apellido, avatar_url, rol, email_verificado)
+         VALUES (?, ?, ?, ?, ?, 'ciudadano', 1)`,
+        [uuid, email, nombre, apellido, avatar_url]
+      );
+      return result.insertId;
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        return null;
+      }
+      throw error;
+    }
+  },
 };

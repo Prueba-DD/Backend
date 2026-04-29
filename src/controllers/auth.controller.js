@@ -5,6 +5,12 @@ import { errorResponse, successResponse } from '../utils/response.js';
 import { enviarCorreo, enviarCorreoBienvenida, enviarCorreoVerificacion } from '../services/email.service.js';
 import { verifyGoogleToken, exchangeCodeForTokens, getGoogleUserInfo, generateAuthUrl } from '../services/google-oauth.service.js';
 import {
+  exchangeFacebookCodeForToken,
+  generateFacebookAuthUrl,
+  getFacebookStrategy,
+  getFacebookUserInfo,
+} from '../services/facebook-oauth.service.js';
+import {
   validarNombreUsuario,
   validarTelefono,
   validarPassword,
@@ -852,6 +858,117 @@ export const getGoogleAuthUrl = async (req, res, next) => {
       'URL de autenticación generada exitosamente.',
       200
     );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============ METODOS PARA AUTENTICACION CON FACEBOOK OAUTH ============
+
+const findOrCreateFacebookUser = async ({ email, nombre, apellido, avatar_url }) => {
+  let user = await UsuarioModel.findByEmail(email);
+
+  if (user) {
+    await UsuarioModel.updateUltimoAcceso(user.id_usuario);
+    return user;
+  }
+
+  const idUsuario = await UsuarioModel.createFromFacebook({
+    email,
+    nombre: nombre || '',
+    apellido: apellido || '',
+    avatar_url,
+  });
+
+  if (!idUsuario) {
+    return null;
+  }
+
+  return UsuarioModel.findById(idUsuario);
+};
+
+export const getFacebookAuthUrl = async (req, res, next) => {
+  try {
+    getFacebookStrategy();
+    const result = generateFacebookAuthUrl();
+
+    if (!result.success) {
+      return errorResponse(res, 'No fue posible generar la URL de autenticacion con Facebook.', 500);
+    }
+
+    return successResponse(
+      res,
+      { authUrl: result.authUrl },
+      'URL de autenticacion con Facebook generada correctamente.',
+      200
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const facebookLogin = async (req, res, next) => {
+  try {
+    const { access_token } = req.body ?? {};
+
+    if (!access_token || typeof access_token !== 'string') {
+      return errorResponse(res, 'El access_token de Facebook es requerido.', 400);
+    }
+
+    const facebookUser = await getFacebookUserInfo(access_token);
+    if (!facebookUser.success) {
+      return errorResponse(res, 'Token de Facebook invalido.', 401);
+    }
+
+    const user = await findOrCreateFacebookUser(facebookUser);
+    if (!user) {
+      return errorResponse(res, 'No fue posible autenticar con Facebook.', 400);
+    }
+
+    const token = buildToken(user);
+
+    return successResponse(
+      res,
+      {
+        token,
+        user: toPublicUser(user),
+      },
+      'Autenticacion con Facebook exitosa.',
+      200
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const facebookCallback = async (req, res, next) => {
+  try {
+    const { code } = req.query ?? {};
+
+    if (!code || typeof code !== 'string') {
+      return errorResponse(res, 'Codigo de autorizacion de Facebook requerido.', 400);
+    }
+
+    const tokenExchange = await exchangeFacebookCodeForToken(code);
+    if (!tokenExchange.success) {
+      return errorResponse(res, 'No fue posible intercambiar el codigo de Facebook.', 400);
+    }
+
+    const facebookUser = await getFacebookUserInfo(tokenExchange.accessToken);
+    if (!facebookUser.success) {
+      return errorResponse(res, 'No fue posible obtener informacion de Facebook.', 400);
+    }
+
+    const user = await findOrCreateFacebookUser(facebookUser);
+    if (!user) {
+      return errorResponse(res, 'No fue posible autenticar con Facebook.', 400);
+    }
+
+    const token = buildToken(user);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(toPublicUser(user)))}`;
+
+    return res.redirect(redirectUrl);
   } catch (error) {
     return next(error);
   }
