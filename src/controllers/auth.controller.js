@@ -686,6 +686,56 @@ export const updateNotifications = async (req, res, next) => {
 
 // ============ MÉTODOS PARA AUTENTICACIÓN CON GOOGLE OAUTH ============
 
+const findOrCreateGoogleUser = async ({ googleId, email, nombre, apellido, avatar_url }) => {
+  if (!googleId || !email) {
+    const error = new Error('No se recibio identificacion completa de Google.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let user = googleId ? await UsuarioModel.findByGoogleId(googleId) : null;
+
+  if (!user) {
+    user = await UsuarioModel.findByEmail(email);
+
+    if (user?.google_id && user.google_id !== googleId) {
+      const error = new Error('El correo ya esta vinculado a otra cuenta de Google.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    if (user && !user.google_id && googleId) {
+      await UsuarioModel.updateGoogleId(user.id_usuario, googleId);
+      user.google_id = googleId;
+    }
+  }
+
+  if (user) {
+    if (!user.activo) {
+      const error = new Error('Cuenta desactivada. Contacta al administrador.');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    await UsuarioModel.updateUltimoAcceso(user.id_usuario);
+    return user;
+  }
+
+  const idUsuario = await UsuarioModel.createFromGoogle({
+    google_id: googleId,
+    email,
+    nombre: nombre || '',
+    apellido: apellido || '',
+    avatar_url,
+  });
+
+  if (!idUsuario) {
+    return null;
+  }
+
+  return UsuarioModel.findById(idUsuario);
+};
+
 export const googleLogin = async (req, res, next) => {
   try {
     const { id_token } = req.body ?? {};
@@ -709,39 +759,24 @@ export const googleLogin = async (req, res, next) => {
       email_verified,
     } = googleVerification;
 
-    // Buscar usuario existente por email o googleId
-    let user = await UsuarioModel.findByEmail(email);
-
-    if (user) {
-      if (!user.activo) {
-        return errorResponse(res, 'Cuenta desactivada. Contacta al administrador.', 403);
-      }
-
-      // Usuario existe con email, actualizar googleId si no lo tiene
-      if (!user.google_id && googleId) {
-        await UsuarioModel.updateGoogleId(user.id_usuario, googleId);
-      }
-      // Actualizar último acceso
-      await UsuarioModel.updateUltimoAcceso(user.id_usuario);
-    } else {
-      // Crear nuevo usuario desde Google
-      const idUsuario = await UsuarioModel.createFromGoogle({
-        google_id: googleId,
+    let user;
+    try {
+      user = await findOrCreateGoogleUser({
+        googleId,
         email,
-        nombre: nombre || '',
-        apellido: apellido || '',
+        nombre,
+        apellido,
         avatar_url,
       });
-
-      if (!idUsuario) {
-        return errorResponse(res, 'No fue posible crear la cuenta con este correo.', 400);
+    } catch (error) {
+      if (error.statusCode) {
+        return errorResponse(res, error.message, error.statusCode);
       }
-
-      user = await UsuarioModel.findById(idUsuario);
+      throw error;
     }
 
     if (!user) {
-      return errorResponse(res, 'Error al procesar la autenticación con Google.', 500);
+      return errorResponse(res, 'No fue posible crear la cuenta con este correo.', 400);
     }
 
     // Generar JWT
@@ -807,36 +842,24 @@ export const googleCallback = async (req, res, next) => {
       avatar_url,
     } = googleUser;
 
-    // Buscar o crear usuario
-    let user = await UsuarioModel.findByEmail(email);
-
-    if (user) {
-      if (!user.activo) {
-        return errorResponse(res, 'Cuenta desactivada. Contacta al administrador.', 403);
-      }
-
-      if (!user.google_id && googleId) {
-        await UsuarioModel.updateGoogleId(user.id_usuario, googleId);
-      }
-      await UsuarioModel.updateUltimoAcceso(user.id_usuario);
-    } else {
-      const idUsuario = await UsuarioModel.createFromGoogle({
-        google_id: googleId,
+    let user;
+    try {
+      user = await findOrCreateGoogleUser({
+        googleId,
         email,
-        nombre: nombre || '',
-        apellido: apellido || '',
+        nombre,
+        apellido,
         avatar_url,
       });
-
-      if (!idUsuario) {
-        return errorResponse(res, 'No fue posible crear la cuenta con este correo.', 400);
+    } catch (error) {
+      if (error.statusCode) {
+        return errorResponse(res, error.message, error.statusCode);
       }
-
-      user = await UsuarioModel.findById(idUsuario);
+      throw error;
     }
 
     if (!user) {
-      return errorResponse(res, 'Error al procesar la autenticación con Google.', 500);
+      return errorResponse(res, 'No fue posible crear la cuenta con este correo.', 400);
     }
 
     // Generar JWT
