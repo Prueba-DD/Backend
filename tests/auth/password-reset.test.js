@@ -40,7 +40,7 @@ const assert = (condition, testName) => {
 async function testConnection() {
   log.info('\n--- TEST 0: Connection ---');
   try {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'test@test.com', password: 'test' }),
