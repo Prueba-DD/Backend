@@ -456,7 +456,7 @@ GET /api/auth/facebook/callback?code=...
   Descripcion: Callback para el flujo Authorization Code de Facebook
 ```
 
-En Facebook OAuth el backend usa el email retornado por Facebook para buscar el usuario. Si lo encuentra y esta activo, actualiza el ultimo acceso y genera el JWT. Si no existe, crea el usuario con rol `ciudadano`, marca el email como verificado y luego genera el JWT.
+En Facebook OAuth el backend identifica primero al usuario por `facebook_id`. El email solo se usa como respaldo para vincular una cuenta existente que todavia no tenga `facebook_id`. Si el email ya esta vinculado a otro `facebook_id`, el backend responde `409` para evitar duplicidad de cuentas. Si encuentra el usuario y esta activo, actualiza el ultimo acceso y genera el JWT. Si no existe, crea el usuario con rol `ciudadano`, marca el email como verificado y luego genera el JWT.
 Antes de responder, el backend valida que el JWT generado coincida con el usuario autenticado.
 
 Nota sobre Google OAuth:

@@ -11,7 +11,7 @@ export const UsuarioModel = {
     // Busca un usuario por su email 
   findByEmail: async (email) => {
     const [rows] = await pool.execute(
-      `SELECT id_usuario, uuid, nombre, apellido, email, password_hash, google_id,
+      `SELECT id_usuario, uuid, nombre, apellido, email, password_hash, google_id, facebook_id,
               rol, activo, email_verificado, avatar_url, telefono, ultimo_acceso,
               created_at, updated_at
        FROM usuarios
@@ -429,14 +429,35 @@ export const UsuarioModel = {
   },
 
   // Crea usuario desde Facebook OAuth usando email verificado por Facebook
-  createFromFacebook: async ({ email, nombre, apellido, avatar_url }) => {
+  findByFacebookId: async (facebook_id) => {
+    const [rows] = await pool.execute(
+      `SELECT ${UsuarioModel._publicUserFields}, facebook_id
+       FROM usuarios
+       WHERE facebook_id = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [facebook_id]
+    );
+    return rows[0] ?? null;
+  },
+
+  updateFacebookId: async (id_usuario, facebook_id) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET facebook_id = ?, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [facebook_id, id_usuario]
+    );
+    return result.affectedRows > 0;
+  },
+
+  createFromFacebook: async ({ facebook_id, email, nombre, apellido, avatar_url }) => {
     const uuid = randomUUID();
 
     try {
       const [result] = await pool.execute(
-        `INSERT INTO usuarios (uuid, email, nombre, apellido, avatar_url, rol, email_verificado)
-         VALUES (?, ?, ?, ?, ?, 'ciudadano', 1)`,
-        [uuid, email, nombre, apellido, avatar_url]
+        `INSERT INTO usuarios (uuid, facebook_id, email, nombre, apellido, avatar_url, rol, email_verificado)
+         VALUES (?, ?, ?, ?, ?, ?, 'ciudadano', 1)`,
+        [uuid, facebook_id, email, nombre, apellido, avatar_url]
       );
       return result.insertId;
     } catch (error) {

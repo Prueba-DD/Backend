@@ -898,8 +898,29 @@ export const getGoogleAuthUrl = async (req, res, next) => {
 
 // ============ METODOS PARA AUTENTICACION CON FACEBOOK OAUTH ============
 
-const findOrCreateFacebookUser = async ({ email, nombre, apellido, avatar_url }) => {
-  let user = await UsuarioModel.findByEmail(email);
+const findOrCreateFacebookUser = async ({ facebookId, email, nombre, apellido, avatar_url }) => {
+  if (!facebookId || !email) {
+    const error = new Error('No se recibio identificacion completa de Facebook.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let user = await UsuarioModel.findByFacebookId(facebookId);
+
+  if (!user) {
+    user = await UsuarioModel.findByEmail(email);
+
+    if (user?.facebook_id && user.facebook_id !== facebookId) {
+      const error = new Error('El correo ya esta vinculado a otra cuenta de Facebook.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    if (user && !user.facebook_id) {
+      await UsuarioModel.updateFacebookId(user.id_usuario, facebookId);
+      user.facebook_id = facebookId;
+    }
+  }
 
   if (user) {
     if (!user.activo) {
@@ -913,6 +934,7 @@ const findOrCreateFacebookUser = async ({ email, nombre, apellido, avatar_url })
   }
 
   const idUsuario = await UsuarioModel.createFromFacebook({
+    facebook_id: facebookId,
     email,
     nombre: nombre || '',
     apellido: apellido || '',
