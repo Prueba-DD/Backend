@@ -102,6 +102,25 @@ const toPublicUser = (user) => ({
   created_at: user.created_at,
 });
 
+const isDevelopment = () => process.env.NODE_ENV === 'development';
+
+const errorResponseWithDevelopmentDetails = (
+  res,
+  message,
+  statusCode = 400,
+  details = undefined
+) => {
+  if (!isDevelopment() || !details) {
+    return errorResponse(res, message, statusCode);
+  }
+
+  return res.status(statusCode).json({
+    status: 'error',
+    message,
+    details,
+  });
+};
+
 const verifyPassword = (password, storedHash) => {
   const [salt, key] = storedHash.split(':');
   const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
@@ -995,12 +1014,22 @@ export const facebookCallback = async (req, res, next) => {
 
     const tokenExchange = await exchangeFacebookCodeForToken(code);
     if (!tokenExchange.success) {
-      return errorResponse(res, 'No fue posible intercambiar el codigo de Facebook.', 400);
+      return errorResponseWithDevelopmentDetails(
+        res,
+        'No fue posible intercambiar el codigo de Facebook.',
+        400,
+        tokenExchange.facebookError || tokenExchange.error
+      );
     }
 
     const facebookUser = await getFacebookUserInfo(tokenExchange.accessToken);
     if (!facebookUser.success) {
-      return errorResponse(res, 'No fue posible obtener informacion de Facebook.', 400);
+      return errorResponseWithDevelopmentDetails(
+        res,
+        'No fue posible obtener informacion de Facebook.',
+        400,
+        facebookUser.facebookError || facebookUser.error
+      );
     }
 
     let user;
@@ -1018,8 +1047,26 @@ export const facebookCallback = async (req, res, next) => {
     }
 
     const token = buildToken(user);
+    const publicUser = toPublicUser(user);
+    const callbackResponseMode = (process.env.FACEBOOK_CALLBACK_RESPONSE || '').toLowerCase();
+    const shouldRedirect = callbackResponseMode === 'redirect' || (
+      callbackResponseMode !== 'json' && !isDevelopment()
+    );
+
+    if (!shouldRedirect) {
+      return successResponse(
+        res,
+        {
+          token,
+          user: publicUser,
+        },
+        'Inicio de sesion con Facebook exitoso.',
+        200
+      );
+    }
+
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(toPublicUser(user)))}`;
+    const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(publicUser))}`;
 
     return res.redirect(redirectUrl);
   } catch (error) {
