@@ -459,6 +459,7 @@ Antes de responder, el backend valida que el JWT generado coincida con el usuari
 
 Nota sobre Google OAuth:
 El endpoint `GET /api/auth/google/url` genera la URL de autenticacion aunque no exista `GOOGLE_CLIENT_SECRET`, porque para construir esa URL solo se necesita el `GOOGLE_CLIENT_ID` y la URL de callback. Si tampoco existe `GOOGLE_CLIENT_ID`, el backend usa el valor de ejemplo para que el endpoint responda correctamente en desarrollo. Para un login real con Google, igual se deben configurar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
+Cuando un usuario ya existe y entra con Google OAuth, el backend revisa si la cuenta esta activa. Si el usuario esta inactivo, responde `403` y no genera JWT.
 
 GESTIÓN DE CUENTA:
 

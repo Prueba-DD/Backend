@@ -713,6 +713,10 @@ export const googleLogin = async (req, res, next) => {
     let user = await UsuarioModel.findByEmail(email);
 
     if (user) {
+      if (!user.activo) {
+        return errorResponse(res, 'Cuenta desactivada. Contacta al administrador.', 403);
+      }
+
       // Usuario existe con email, actualizar googleId si no lo tiene
       if (!user.google_id && googleId) {
         await UsuarioModel.updateGoogleId(user.id_usuario, googleId);
@@ -807,6 +811,10 @@ export const googleCallback = async (req, res, next) => {
     let user = await UsuarioModel.findByEmail(email);
 
     if (user) {
+      if (!user.activo) {
+        return errorResponse(res, 'Cuenta desactivada. Contacta al administrador.', 403);
+      }
+
       if (!user.google_id && googleId) {
         await UsuarioModel.updateGoogleId(user.id_usuario, googleId);
       }
