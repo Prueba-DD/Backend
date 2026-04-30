@@ -9,6 +9,24 @@ import {
   generateFacebookAuthUrl,
   getFacebookUserInfo,
 } from '../services/facebook-oauth.service.js';
+
+/**
+ * ESTRATEGIA DE AUTENTICACIÓN CON FACEBOOK
+ * ==========================================
+ * Flujo único: Authorization Code Flow (lado del servidor)
+ * 
+ * 1. Frontend obtiene URL de autenticación en /facebook/url
+ * 2. Usuario se autentica en Facebook
+ * 3. Facebook redirige a /facebook/callback con código
+ * 4. Backend intercambia código por token (seguro, lado servidor)
+ * 5. Backend retorna JWT al cliente
+ * 
+ * Ventajas:
+ * - Secret de Facebook nunca se expone al cliente
+ * - Un único flujo consistente
+ * - Cumple estándares OAuth 2.0
+ * - Mejor seguridad
+ */
 import {
   validarNombreUsuario,
   validarTelefono,
@@ -960,49 +978,6 @@ export const getFacebookAuthUrl = async (req, res, next) => {
       res,
       { authUrl: result.authUrl },
       'URL de autenticacion con Facebook generada correctamente.',
-      200
-    );
-  } catch (error) {
-    return next(error);
-  }
-};
-
-export const facebookLogin = async (req, res, next) => {
-  try {
-    const { access_token } = req.body ?? {};
-
-    if (!access_token || typeof access_token !== 'string') {
-      return errorResponse(res, 'El access_token de Facebook es requerido.', 400);
-    }
-
-    const facebookUser = await getFacebookUserInfo(access_token);
-    if (!facebookUser.success) {
-      return errorResponse(res, 'Token de Facebook invalido.', 401);
-    }
-
-    let user;
-    try {
-      user = await findOrCreateFacebookUser(facebookUser);
-    } catch (error) {
-      if (error.statusCode) {
-        return errorResponse(res, error.message, error.statusCode);
-      }
-      throw error;
-    }
-
-    if (!user) {
-      return errorResponse(res, 'No fue posible autenticar con Facebook.', 400);
-    }
-
-    const token = buildToken(user);
-
-    return successResponse(
-      res,
-      {
-        token,
-        user: toPublicUser(user),
-      },
-      'Autenticacion con Facebook exitosa.',
       200
     );
   } catch (error) {
