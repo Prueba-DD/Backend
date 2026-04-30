@@ -30,7 +30,7 @@ API REST para la plataforma de monitoreo ambiental ciudadano GreenAlert. Constru
 | **Base de Datos** | MySQL 8.0+ |
 | **Driver MySQL** | mysql2/promise |
 | **Autenticación JWT** | jsonwebtoken |
-| **Autenticación OAuth** | google-auth-library, passport-facebook |
+| **Autenticación OAuth** | google-auth-library, Facebook Graph API |
 | **Hash de Contraseña** | crypto (scrypt) |
 | **Variables de Entorno** | dotenv |
 | **Desarrollo** | Nodemon |
@@ -349,8 +349,10 @@ FACEBOOK_GRAPH_API_VERSION=v20.0
 #### Archivos de configuracion
 
 - `src/config/facebook.config.js`: centraliza y valida las variables de Facebook OAuth.
-- `src/services/facebook-oauth.service.js`: genera la URL de autenticacion, configura la estrategia y consulta la informacion del usuario en Facebook.
+- `src/services/facebook-oauth.service.js`: genera la URL de autenticacion, cambia el `code` por `access_token` y consulta la informacion del usuario en Facebook.
 - `validate-facebook-credentials.js`: permite verificar que las credenciales existan y no sean valores de ejemplo.
+
+El flujo de Facebook OAuth se maneja directamente con Facebook Graph API. No se usa Passport, porque el backend ya genera la URL, cambia el `code` por `access_token` y consulta el perfil desde el servicio propio.
 
 #### Validar credenciales
 

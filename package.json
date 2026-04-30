@@ -15,8 +15,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
     "mysql2": "^3.9.8",
-    "nodemailer": "^8.0.5",
-    "passport-facebook": "^3.0.0"
+    "nodemailer": "^8.0.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.3"

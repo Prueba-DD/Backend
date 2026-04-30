@@ -7,7 +7,6 @@ import { verifyGoogleToken, exchangeCodeForTokens, getGoogleUserInfo, generateAu
 import {
   exchangeFacebookCodeForToken,
   generateFacebookAuthUrl,
-  getFacebookStrategy,
   getFacebookUserInfo,
 } from '../services/facebook-oauth.service.js';
 import {
@@ -929,7 +928,6 @@ const findOrCreateFacebookUser = async ({ email, nombre, apellido, avatar_url })
 
 export const getFacebookAuthUrl = async (req, res, next) => {
   try {
-    getFacebookStrategy();
     const result = generateFacebookAuthUrl();
 
     if (!result.success) {

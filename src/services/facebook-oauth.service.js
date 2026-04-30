@@ -1,7 +1,4 @@
-import { Strategy as FacebookStrategy } from 'passport-facebook';
 import { getFacebookConfig } from '../config/facebook.config.js';
-
-let facebookStrategy = null;
 
 const getGraphApiBaseUrl = () => {
   const { graphApiVersion } = getFacebookConfig();
@@ -19,42 +16,6 @@ const normalizeFacebookProfile = (profile) => {
     apellido: profile.last_name || lastNameParts.join(' ') || '',
     avatar_url: profile.picture?.data?.url || null,
   };
-};
-
-export const getFacebookStrategy = () => {
-  if (facebookStrategy) {
-    return facebookStrategy;
-  }
-
-  const config = getFacebookConfig();
-
-  facebookStrategy = new FacebookStrategy(
-    {
-      clientID: config.appId,
-      clientSecret: config.appSecret,
-      callbackURL: config.callbackUrl,
-      profileFields: ['id', 'displayName', 'name', 'emails', 'photos'],
-    },
-    (accessToken, refreshToken, profile, done) => {
-      const email = profile.emails?.[0]?.value;
-      const photo = profile.photos?.[0]?.value;
-
-      if (!email) {
-        return done(null, false, { message: 'Facebook no retorno un email.' });
-      }
-
-      return done(null, {
-        facebookId: profile.id,
-        email,
-        nombre: profile.name?.givenName || profile.displayName || '',
-        apellido: profile.name?.familyName || '',
-        avatar_url: photo || null,
-        accessToken,
-      });
-    }
-  );
-
-  return facebookStrategy;
 };
 
 export const generateFacebookAuthUrl = () => {
