@@ -1,7 +1,6 @@
 /**
  * GOOGLE OAUTH CONFIGURATION
- * Centraliza y valida todas las variables de entorno para Google OAuth 2.0
- * Nunca debe contener valores hardcodeados
+ * Centraliza y valida las variables de entorno para Google OAuth 2.0.
  */
 
 const validateGoogleConfig = () => {
@@ -11,9 +10,8 @@ const validateGoogleConfig = () => {
     callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback',
   };
 
-  // Validar que variables críticas estén definidas
   const missingVars = [];
-  
+
   if (!config.clientId) missingVars.push('GOOGLE_CLIENT_ID');
   if (!config.clientSecret) missingVars.push('GOOGLE_CLIENT_SECRET');
 
@@ -34,23 +32,28 @@ const validateGoogleConfig = () => {
   return config;
 };
 
-// Cargar y validar configuración
+export const getGoogleAuthUrlConfig = () => ({
+  clientId: process.env.GOOGLE_CLIENT_ID || 'your_client_id_here.apps.googleusercontent.com',
+  callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback',
+  isConfigured: Boolean(process.env.GOOGLE_CLIENT_ID),
+});
+
 let googleConfig = null;
 
 export const getGoogleConfig = () => {
   if (!googleConfig) {
     googleConfig = validateGoogleConfig();
   }
+
   return googleConfig;
 };
 
-// Validar al importar si está en desarrollo
 if (process.env.NODE_ENV === 'development') {
   try {
     getGoogleConfig();
-    console.log('✓ Google OAuth configuration loaded successfully');
+    console.log('[OK] Google OAuth configuration loaded successfully');
   } catch (error) {
-    console.warn('⚠ Google OAuth not yet configured:', error.message);
+    console.warn('[AVISO] Google OAuth not yet configured:', error.message);
   }
 }
 
