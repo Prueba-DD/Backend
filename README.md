@@ -712,10 +712,25 @@ backend/
 |--------|------|-----------|-------------|
 | `GET` | `/api/reportes` | No | Listar todos los reportes |
 | `GET` | `/api/reportes/stats` | No | Estadísticas generales |
+| `GET` | `/api/reportes/export` | Si | Exportar reportes (CSV/JSON) |
 | `GET` | `/api/reportes/:id` | No | Obtener detalle de reporte |
 | `POST` | `/api/reportes` | Si | Crear nuevo reporte |
 | `PATCH` | `/api/reportes/:id` | Si | Actualizar reporte |
 | `DELETE` | `/api/reportes/:id` | Si | Eliminar reporte |
+
+#### Exportación de reportes
+
+`GET /api/reportes/export`
+
+- Protegida: requiere `verifyToken` y `requireRoles('admin','moderador')`.
+- Formato:
+  - CSV por defecto (incluye BOM para Excel).
+  - JSON con `?format=json`.
+- Filtros opcionales:
+  - `tipo_contaminacion`, `estado`, `nivel_severidad`, `municipio`, `desde`, `hasta`.
+  - Si `hasta` se envia como `YYYY-MM-DD`, se interpreta hasta el final de ese dia (`23:59:59`).
+- Campos JSON incluidos:
+  - `titulo`, `tipo_contaminacion`, `nivel_severidad`, `estado`, `municipio`, `autor_nombre`, `autor_apellido`, `created_at`.
 
 ### Categorías (`/api/categorias`)
 

@@ -1,0 +1,3 @@
+﻿titulo,tipo_contaminacion,nivel_severidad,estado,municipio,autor_nombre,autor_apellido,created_at
+Quema de plasticos,aire,medio,verificado,Mocoa,Jhoan David,Ortega Ramos,Mon Mar 23 2026 08:57:31 GMT-0500 (hora estándar de Colombia)
+Vertimiento de aceites de motor,agua,critico,en_proceso,Mocoa,Jhoan David,Ortega Ramos,Sun Mar 15 2026 01:05:40 GMT-0500 (hora estándar de Colombia)

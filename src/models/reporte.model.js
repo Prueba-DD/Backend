@@ -55,6 +55,64 @@ export const ReporteModel = {
     return rows;
   },
 
+  // Exporta reportes con filtros opcionales (para CSV/JSON)
+  findForExport: async ({
+    estado,
+    tipo_contaminacion,
+    nivel_severidad,
+    municipio,
+    desde,
+    hasta,
+  } = {}) => {
+    const conditions = ['r.deleted_at IS NULL'];
+    const params = [];
+
+    if (estado) {
+      conditions.push('r.estado = ?');
+      params.push(estado);
+    }
+    if (tipo_contaminacion) {
+      conditions.push('r.tipo_contaminacion = ?');
+      params.push(tipo_contaminacion);
+    }
+    if (nivel_severidad) {
+      conditions.push('r.nivel_severidad = ?');
+      params.push(nivel_severidad);
+    }
+    if (municipio) {
+      conditions.push('r.municipio = ?');
+      params.push(municipio);
+    }
+    if (desde) {
+      conditions.push('r.created_at >= ?');
+      params.push(desde);
+    }
+    if (hasta) {
+      conditions.push('r.created_at <= ?');
+      params.push(hasta);
+    }
+
+    const where = conditions.join(' AND ');
+
+    const [rows] = await pool.execute(
+      `SELECT r.titulo,
+              r.tipo_contaminacion,
+              r.nivel_severidad,
+              r.estado,
+              r.municipio,
+              r.created_at,
+              u.nombre AS autor_nombre,
+              u.apellido AS autor_apellido
+       FROM reportes r
+       LEFT JOIN usuarios u ON u.id_usuario = r.id_usuario
+       WHERE ${where}
+       ORDER BY r.created_at DESC`,
+      params
+    );
+
+    return rows;
+  },
+
   
     // Busca un reporte por id_reporte 
    
