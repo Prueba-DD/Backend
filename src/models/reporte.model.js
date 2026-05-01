@@ -225,12 +225,4 @@ export const ReporteModel = {
     return { ...r, ...u };
   },
 
-  // Cuenta el total de reportes creados por un usuario
-  countByUsuario: async (id_usuario) => {
-    const [[row]] = await pool.execute(
-      `SELECT COUNT(*) AS total FROM reportes WHERE id_usuario = ? AND deleted_at IS NULL`,
-      [id_usuario]
-    );
-    return row?.total ?? 0;
-  },
 };

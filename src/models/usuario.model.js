@@ -38,22 +38,6 @@ export const UsuarioModel = {
     return rows[0] ?? null;
   },
 
-  
-    // Busca un usuario por su uuid  
-   
-  findByUuid: async (uuid) => {
-    const [rows] = await pool.execute(
-      `SELECT id_usuario, uuid, nombre, apellido, email,
-              rol, activo, email_verificado, avatar_url, telefono, ultimo_acceso,
-              created_at, updated_at
-       FROM usuarios
-       WHERE uuid = ? AND deleted_at IS NULL
-       LIMIT 1`,
-      [uuid]
-    );
-    return rows[0] ?? null;
-  },
-
   // Busca usuario por id con los campos públicos para perfil
   findByIdWithDetails: async (id_usuario) => {
     const [rows] = await pool.execute(
