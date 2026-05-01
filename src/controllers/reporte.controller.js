@@ -20,6 +20,12 @@ const normalizeHasta = (value) => {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value} 23:59:59` : value;
 };
 
+const parseAnalyticsLimit = (value, defaultValue = 12, maxValue = 60) => {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) return defaultValue;
+  return Math.max(1, Math.min(maxValue, parsed));
+};
+
 export const createReporte = async (req, res, next) => {
   try {
     const {
@@ -187,6 +193,53 @@ export const getStats = async (req, res, next) => {
   try {
     const stats = await ReporteModel.getStats();
     return successResponse(res, { stats });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getStatsByCategoria = async (req, res, next) => {
+  try {
+    const data = await ReporteModel.getStatsByCategoria();
+    return successResponse(
+      res,
+      { data, total: data.length },
+      'Estadisticas por categoria obtenidas correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getStatsTimeline = async (req, res, next) => {
+  try {
+    const bucket = String(req.query.bucket ?? 'week').toLowerCase();
+
+    if (!['week', 'month'].includes(bucket)) {
+      return errorResponse(res, 'El parametro bucket debe ser week o month.', 400);
+    }
+
+    const limit = parseAnalyticsLimit(req.query.limit);
+    const data = await ReporteModel.getStatsTimeline({ bucket, limit });
+
+    return successResponse(
+      res,
+      { data, bucket, limit, total: data.length },
+      'Timeline de reportes obtenido correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getHeatmapPoints = async (req, res, next) => {
+  try {
+    const data = await ReporteModel.getHeatmapPoints();
+    return successResponse(
+      res,
+      { data, total: data.length },
+      'Puntos de heatmap obtenidos correctamente.'
+    );
   } catch (error) {
     return next(error);
   }
