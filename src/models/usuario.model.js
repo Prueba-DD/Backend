@@ -11,7 +11,7 @@ export const UsuarioModel = {
     // Busca un usuario por su email 
   findByEmail: async (email) => {
     const [rows] = await pool.execute(
-      `SELECT id_usuario, uuid, nombre, apellido, email, password_hash,
+      `SELECT id_usuario, uuid, nombre, apellido, email, password_hash, google_id,
               rol, activo, email_verificado, avatar_url, telefono, ultimo_acceso,
               created_at, updated_at
        FROM usuarios
@@ -388,7 +388,7 @@ export const UsuarioModel = {
   // Busca usuario por google_id
   findByGoogleId: async (google_id) => {
     const [rows] = await pool.execute(
-      `SELECT ${UsuarioModel._publicUserFields}
+      `SELECT ${UsuarioModel._publicUserFields}, google_id
        FROM usuarios
        WHERE google_id = ? AND deleted_at IS NULL
        LIMIT 1`,
