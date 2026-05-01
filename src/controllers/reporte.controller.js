@@ -8,6 +8,18 @@ const parseCoord = (val) => {
   return isNaN(n) ? null : n;
 };
 
+const toCsvValue = (value) => {
+  if (value === null || value === undefined) return '';
+  const raw = String(value);
+  const escaped = raw.replace(/"/g, '""');
+  return /[",\n\r]/.test(raw) ? `"${escaped}"` : escaped;
+};
+
+const normalizeHasta = (value) => {
+  if (!value) return value;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value} 23:59:59` : value;
+};
+
 export const createReporte = async (req, res, next) => {
   try {
     const {
@@ -83,6 +95,61 @@ export const getReportes = async (req, res, next) => {
       offset: Number(offset),
     });
     return successResponse(res, { reportes, total: reportes.length });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const exportReportes = async (req, res, next) => {
+  try {
+    const {
+      format,
+      tipo_contaminacion,
+      estado,
+      nivel_severidad,
+      municipio,
+      desde,
+      hasta,
+    } = req.query ?? {};
+
+    const reportes = await ReporteModel.findForExport({
+      tipo_contaminacion,
+      estado,
+      nivel_severidad,
+      municipio,
+      desde,
+      hasta: normalizeHasta(hasta),
+    });
+
+    if (String(format).toLowerCase() === 'json') {
+      return successResponse(
+        res,
+        { reportes },
+        'Exportacion de reportes generada correctamente.'
+      );
+    }
+
+    const headers = [
+      'titulo',
+      'tipo_contaminacion',
+      'nivel_severidad',
+      'estado',
+      'municipio',
+      'autor_nombre',
+      'autor_apellido',
+      'created_at',
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...reportes.map((row) => headers.map((key) => toCsvValue(row[key])).join(',')),
+    ];
+
+    const csvContent = `\ufeff${csvRows.join('\n')}`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="reportes_export.csv"');
+    return res.status(200).send(csvContent);
   } catch (error) {
     return next(error);
   }
