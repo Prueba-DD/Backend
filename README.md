@@ -119,7 +119,11 @@ DB_NAME=green_alert
 
 # Autenticación
 JWT_SECRET=tu_clave_secreta_muy_segura_aqui_12345678
-JWT_EXPIRES_IN=7d
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_DAYS=7
+RATE_LIMIT_LOGIN_MAX=5
+RATE_LIMIT_AUTH_MAX=20
+RATE_LIMIT_PASSWORD_RESET_MAX=5
 
 # Archivos
 UPLOAD_DIR=./uploads
@@ -731,6 +735,8 @@ backend/
 |--------|------|-----------|-------------|
 | `POST` | `/api/auth/register` | No | Registro de nuevo usuario |
 | `POST` | `/api/auth/login` | No | Login de usuario |
+| `POST` | `/api/auth/refresh` | No | Renovar access token con refresh token |
+| `POST` | `/api/auth/logout` | No | Invalidar refresh token |
 | `GET` | `/api/auth/verify-email` | No | Verificar cuenta con token de correo |
 | `POST` | `/api/auth/forgot-password` | No | Solicitar recuperacion de contrasena |
 | `POST` | `/api/auth/reset-password` | No | Restablecer contrasena con token |
@@ -843,7 +849,7 @@ Flujo basico:
 4. El backend valida el token generado antes de enviarlo en la respuesta.
 5. El cliente debe enviar el token en las rutas protegidas usando el header `Authorization`.
 
-La duracion del token se configura con `JWT_EXPIRES_IN`. Si no se define, se usa `7d`.
+La duracion del access token se configura con `JWT_EXPIRES_IN`. Si no se define, se usa `15m`. El refresh token expira segun `REFRESH_TOKEN_EXPIRES_DAYS` y se almacena hasheado en la tabla `refresh_tokens`.
 
 Respuesta esperada en login o registro exitoso:
 
@@ -851,7 +857,10 @@ Respuesta esperada en login o registro exitoso:
 {
   "status": "success",
   "data": {
-    "token": "jwt_generado",
+    "token": "access_token_jwt",
+    "accessToken": "access_token_jwt",
+    "refreshToken": "refresh_token_opaco",
+    "refreshTokenExpiresAt": "2026-05-08T21:00:00.000Z",
     "user": {
       "id_usuario": 1,
       "email": "usuario@correo.com",
@@ -861,6 +870,42 @@ Respuesta esperada en login o registro exitoso:
   "message": "Inicio de sesion exitoso."
 }
 ```
+
+### Refresh tokens y logout
+
+Los refresh tokens son valores opacos generados con `crypto.randomBytes`, se guardan solo como hash SHA-256 en la tabla `refresh_tokens` y se rotan en cada renovacion.
+
+Renovar access token:
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "refresh_token_opaco"
+}
+```
+
+Cerrar sesion:
+
+```http
+POST /api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "refresh_token_opaco"
+}
+```
+
+### Rate limiting
+
+Se usa `express-rate-limit` en rutas sensibles:
+
+- `POST /api/auth/login`: limite bajo para intentos de credenciales.
+- `POST /api/auth/register`, `/refresh`, `/logout`, verificacion de email y OAuth: limite general de autenticacion.
+- `POST /api/auth/forgot-password`, `/reset-password` y cambio de contrasena: limite especifico de recuperacion.
+
+Los limites se configuran con `RATE_LIMIT_LOGIN_MAX`, `RATE_LIMIT_AUTH_MAX` y `RATE_LIMIT_PASSWORD_RESET_MAX`.
 
 ### Headers Requeridos
 
