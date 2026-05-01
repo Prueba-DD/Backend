@@ -14,7 +14,6 @@ import {
 	googleLogin,
 	googleCallback,
 	getGoogleAuthUrl,
-	facebookLogin,
 	facebookCallback,
 	getFacebookAuthUrl,
 } from '../src/controllers/auth.controller.js';
@@ -39,9 +38,8 @@ authRouter.get('/google/url', getGoogleAuthUrl);
 authRouter.post('/google/login', googleLogin);
 authRouter.get('/google/callback', googleCallback);
 
-// Rutas para autenticacion con Facebook OAuth
+// Rutas para autenticacion con Facebook OAuth (Authorization Code Flow)
 authRouter.get('/facebook/url', getFacebookAuthUrl);
-authRouter.post('/facebook/login', facebookLogin);
 authRouter.get('/facebook/callback', facebookCallback);
 
 export default authRouter;
