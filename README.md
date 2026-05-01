@@ -320,7 +320,7 @@ Si faltan credenciales, mostrará advertencia con instrucciones:
 
 ### Configuracion Facebook OAuth
 
-Esta configuracion permite guardar en el backend las credenciales de una app creada en Meta for Developers. En esta tarea solo se prepara la configuracion y la validacion de credenciales; el flujo completo de login con Facebook se puede implementar despues.
+Esta configuracion permite usar Facebook OAuth en el backend. El flujo soporta autenticacion por `access_token` enviado desde el cliente y tambien callback con `code`.
 
 #### Crear app en Meta for Developers
 
@@ -349,6 +349,7 @@ FACEBOOK_GRAPH_API_VERSION=v20.0
 #### Archivos de configuracion
 
 - `src/config/facebook.config.js`: centraliza y valida las variables de Facebook OAuth.
+- `src/services/facebook-oauth.service.js`: genera la URL de autenticacion, configura la estrategia y consulta la informacion del usuario en Facebook.
 - `validate-facebook-credentials.js`: permite verificar que las credenciales existan y no sean valores de ejemplo.
 
 #### Validar credenciales
@@ -360,6 +361,31 @@ node validate-facebook-credentials.js
 ```
 
 Si todo esta configurado correctamente, el script muestra que las credenciales fueron cargadas. Si falta una variable o se dejaron valores de ejemplo, el script muestra el error para corregir el `.env`.
+
+#### Endpoints de Facebook OAuth
+
+```bash
+GET /auth/facebook/url
+```
+
+Genera la URL para enviar al usuario a Facebook.
+
+```bash
+POST /auth/facebook/login
+Content-Type: application/json
+
+{
+  "access_token": "token_entregado_por_facebook"
+}
+```
+
+Valida el token con Facebook. Si el usuario existe por email, inicia sesion. Si no existe, crea una cuenta como ciudadano y retorna el JWT del backend.
+
+```bash
+GET /auth/facebook/callback?code=...
+```
+
+Recibe el codigo de Facebook, lo cambia por un `access_token`, obtiene la informacion del usuario y redirige al frontend con el JWT.
 
 #### [CONFIG] Endpoints de Autenticación
 
@@ -391,6 +417,24 @@ GET /api/auth/google/callback?code=...
   Parámetros: code (código de autorización de Google)
   Retorna: Redirige al frontend con token y usuario
   Descripción: Callback para el flujo Authorization Code de Google
+```
+
+AUTENTICACION CON FACEBOOK OAUTH:
+
+```
+GET /api/auth/facebook/url
+  Retorna: { authUrl }
+  Descripcion: Genera la URL de autenticacion con Facebook
+
+POST /api/auth/facebook/login
+  Body: { access_token }
+  Retorna: { token, user }
+  Descripcion: Verifica el access_token de Facebook y autentica al usuario
+
+GET /api/auth/facebook/callback?code=...
+  Parametros: code (codigo de autorizacion de Facebook)
+  Retorna: Redirige al frontend con token y usuario
+  Descripcion: Callback para el flujo Authorization Code de Facebook
 ```
 
 GESTIÓN DE CUENTA:
