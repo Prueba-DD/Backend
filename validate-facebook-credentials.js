@@ -10,6 +10,7 @@ const isPlaceholder = (value) => {
   return (
     normalizedValue.includes('your_') ||
     normalizedValue.includes('tu_') ||
+    normalizedValue.includes('clave_secreta') ||
     normalizedValue.includes('app_id') ||
     normalizedValue.includes('app_secret')
   );
