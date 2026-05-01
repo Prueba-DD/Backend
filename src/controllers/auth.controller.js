@@ -18,23 +18,51 @@ const hashPassword = (password) => {
   return `${salt}:${derivedKey}`;
 };
 
-const buildToken = (user) => {
+const getJwtSecret = () => {
   if (!process.env.JWT_SECRET) {
-    const error = new Error('JWT_SECRET no configurado ');
+    const error = new Error('JWT_SECRET no configurado');
     error.statusCode = 500;
     throw error;
   }
 
-  return jwt.sign(
+  return process.env.JWT_SECRET;
+};
+
+const validateGeneratedToken = (token, secret, user) => {
+  const decoded = jwt.verify(token, secret);
+
+  if (
+    Number(decoded.sub) !== Number(user.id_usuario) ||
+    decoded.email !== user.email ||
+    decoded.rol !== user.rol ||
+    (user.uuid && decoded.uuid !== user.uuid)
+  ) {
+    const error = new Error('JWT generado no coincide con el usuario autenticado');
+    error.statusCode = 500;
+    throw error;
+  }
+
+  return decoded;
+};
+
+const buildToken = (user) => {
+  const secret = getJwtSecret();
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+
+  const token = jwt.sign(
     {
       sub: user.id_usuario,
       uuid: user.uuid,
       rol: user.rol,
       email: user.email,
     },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    secret,
+    { expiresIn }
   );
+
+  validateGeneratedToken(token, secret, user);
+
+  return token;
 };
 
 const toPublicUser = (user) => ({
