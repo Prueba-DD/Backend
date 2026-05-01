@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { UsuarioModel } from '../models/usuario.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
-import { enviarCorreo, enviarCorreoBienvenida, enviarCorreoVerificacion } from '../services/email.service.js';
+import { enviarCorreo, enviarCorreoBienvenida } from '../services/email.service.js';
 import { verifyGoogleToken, exchangeCodeForTokens, getGoogleUserInfo, generateAuthUrl } from '../services/google-oauth.service.js';
 import {
   exchangeFacebookCodeForToken,

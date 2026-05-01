@@ -18,23 +18,6 @@ export const EvidenciaModel = {
   },
 
   
-    // Busca una evidencia por su id_evidencia
-   
-  findById: async (id_evidencia) => {
-    const [rows] = await pool.execute(
-      `SELECT id_evidencia, uuid, id_reporte, id_usuario, tipo_archivo,
-              url_archivo, nombre_original, mime_type, tamano_bytes,
-              hash_sha256, metadatos_exif, ia_analisis, ia_procesado,
-              verificado, orden, created_at
-       FROM evidencias
-       WHERE id_evidencia = ?
-       LIMIT 1`,
-      [id_evidencia]
-    );
-    return rows[0] ?? null;
-  },
-
-  
     // Registra una nueva evidencia asociada a un reporte
    
   create: async ({
@@ -61,14 +44,4 @@ export const EvidenciaModel = {
     return result.insertId;
   },
 
-  
-    // Elimina una evidencia por su id_evidencia
- 
-  remove: async (id_evidencia) => {
-    const [result] = await pool.execute(
-      `DELETE FROM evidencias WHERE id_evidencia = ?`,
-      [id_evidencia]
-    );
-    return result.affectedRows > 0;
-  },
 };
