@@ -379,7 +379,7 @@ Content-Type: application/json
 }
 ```
 
-Valida el token con Facebook. Si el usuario existe por email, inicia sesion. Si no existe, crea una cuenta como ciudadano y retorna el JWT del backend.
+Valida el token con Facebook. Si el usuario existe por email y esta activo, inicia sesion. Si no existe, crea una cuenta como ciudadano y retorna el JWT del backend. Si la cuenta existe pero esta desactivada, el backend responde con estado `403`.
 
 ```bash
 GET /auth/facebook/callback?code=...
@@ -436,6 +436,8 @@ GET /api/auth/facebook/callback?code=...
   Retorna: Redirige al frontend con token y usuario
   Descripcion: Callback para el flujo Authorization Code de Facebook
 ```
+
+En Facebook OAuth el backend usa el email retornado por Facebook para buscar el usuario. Si lo encuentra y esta activo, actualiza el ultimo acceso y genera el JWT. Si no existe, crea el usuario con rol `ciudadano`, marca el email como verificado y luego genera el JWT.
 
 GESTIÓN DE CUENTA:
 
