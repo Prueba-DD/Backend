@@ -712,6 +712,9 @@ backend/
 |--------|------|-----------|-------------|
 | `GET` | `/api/reportes` | No | Listar todos los reportes |
 | `GET` | `/api/reportes/stats` | No | Estadísticas generales |
+| `GET` | `/api/reportes/stats/categoria` | No | Estadisticas por categoria |
+| `GET` | `/api/reportes/stats/timeline` | No | Timeline por semana o mes |
+| `GET` | `/api/reportes/stats/heatmap` | No | Puntos para heatmap por severidad |
 | `GET` | `/api/reportes/export` | Si | Exportar reportes (CSV/JSON) |
 | `GET` | `/api/reportes/:id` | No | Obtener detalle de reporte |
 | `POST` | `/api/reportes` | Si | Crear nuevo reporte |
@@ -731,6 +734,24 @@ backend/
   - Si `hasta` se envia como `YYYY-MM-DD`, se interpreta hasta el final de ese dia (`23:59:59`).
 - Campos JSON incluidos:
   - `titulo`, `tipo_contaminacion`, `nivel_severidad`, `estado`, `municipio`, `autor_nombre`, `autor_apellido`, `created_at`.
+
+#### Analitica publica de reportes
+
+`GET /api/reportes/stats/categoria`
+
+- Retorna conteos por categoria activa en `data.data`.
+- Incluye metadata de categoria y conteos por estado/severidad.
+
+`GET /api/reportes/stats/timeline?bucket=week|month&limit=N`
+
+- `bucket`: `week` por defecto. Valores permitidos: `week`, `month`.
+- `limit`: cantidad de periodos a retornar. Valor por defecto `12`, maximo `60`.
+- Retorna los periodos en orden cronologico en `data.data`.
+
+`GET /api/reportes/stats/heatmap`
+
+- Retorna puntos con `latitud`, `longitud` e `intensidad` en `data.data`.
+- La intensidad se calcula desde `nivel_severidad`: `bajo=0.25`, `medio=0.5`, `alto=0.75`, `critico=1.0`.
 
 ### Categorías (`/api/categorias`)
 

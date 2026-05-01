@@ -283,4 +283,103 @@ export const ReporteModel = {
     return { ...r, ...u };
   },
 
+  // Conteos de reportes agrupados por categoria para analitica publica
+  getStatsByCategoria: async () => {
+    const [rows] = await pool.execute(
+      `SELECT
+         cr.codigo,
+         cr.nombre,
+         cr.icono,
+         cr.color_hex,
+         COUNT(r.id_reporte) AS total_reportes,
+         SUM(CASE WHEN r.estado = 'pendiente' THEN 1 ELSE 0 END) AS pendientes,
+         SUM(CASE WHEN r.estado = 'en_revision' THEN 1 ELSE 0 END) AS en_revision,
+         SUM(CASE WHEN r.estado = 'verificado' THEN 1 ELSE 0 END) AS verificados,
+         SUM(CASE WHEN r.estado = 'en_proceso' THEN 1 ELSE 0 END) AS en_proceso,
+         SUM(CASE WHEN r.estado = 'resuelto' THEN 1 ELSE 0 END) AS resueltos,
+         SUM(CASE WHEN r.estado = 'rechazado' THEN 1 ELSE 0 END) AS rechazados,
+         SUM(CASE WHEN r.nivel_severidad = 'bajo' THEN 1 ELSE 0 END) AS bajo,
+         SUM(CASE WHEN r.nivel_severidad = 'medio' THEN 1 ELSE 0 END) AS medio,
+         SUM(CASE WHEN r.nivel_severidad = 'alto' THEN 1 ELSE 0 END) AS alto,
+         SUM(CASE WHEN r.nivel_severidad = 'critico' THEN 1 ELSE 0 END) AS critico
+       FROM categorias_riesgo cr
+       LEFT JOIN reportes r ON r.tipo_contaminacion = cr.codigo
+        AND r.deleted_at IS NULL
+       WHERE cr.activo = 1
+       GROUP BY cr.id_categoria, cr.codigo, cr.nombre, cr.icono, cr.color_hex
+       ORDER BY total_reportes DESC, cr.nombre ASC`
+    );
+
+    return rows;
+  },
+
+  // Timeline de reportes agrupado por semana o mes
+  getStatsTimeline: async ({ bucket = 'week', limit = 12 } = {}) => {
+    const safeLimit = Math.max(1, Math.min(60, parseInt(limit, 10) || 12));
+    const isMonth = bucket === 'month';
+
+    const periodKey = isMonth
+      ? "DATE_FORMAT(r.created_at, '%Y-%m')"
+      : "CONCAT(YEARWEEK(r.created_at, 3), '')";
+    const periodLabel = isMonth
+      ? "DATE_FORMAT(r.created_at, '%Y-%m')"
+      : "CONCAT(YEAR(DATE_SUB(DATE(r.created_at), INTERVAL WEEKDAY(r.created_at) DAY)), '-W', LPAD(WEEK(r.created_at, 3), 2, '0'))";
+    const periodStart = isMonth
+      ? "DATE_FORMAT(r.created_at, '%Y-%m-01')"
+      : "DATE_FORMAT(DATE_SUB(DATE(r.created_at), INTERVAL WEEKDAY(r.created_at) DAY), '%Y-%m-%d')";
+
+    const [rows] = await pool.execute(
+      `SELECT *
+       FROM (
+         SELECT
+           ${periodKey} AS periodo_key,
+           ${periodLabel} AS periodo,
+           ${periodStart} AS periodo_inicio,
+           COUNT(*) AS total_reportes,
+           SUM(CASE WHEN r.nivel_severidad = 'bajo' THEN 1 ELSE 0 END) AS bajo,
+           SUM(CASE WHEN r.nivel_severidad = 'medio' THEN 1 ELSE 0 END) AS medio,
+           SUM(CASE WHEN r.nivel_severidad = 'alto' THEN 1 ELSE 0 END) AS alto,
+           SUM(CASE WHEN r.nivel_severidad = 'critico' THEN 1 ELSE 0 END) AS critico,
+           SUM(CASE WHEN r.estado = 'resuelto' THEN 1 ELSE 0 END) AS resueltos
+         FROM reportes r
+         WHERE r.deleted_at IS NULL
+         GROUP BY periodo_key, periodo, periodo_inicio
+         ORDER BY periodo_key DESC
+         LIMIT ${safeLimit}
+       ) timeline
+       ORDER BY periodo_key ASC`
+    );
+
+    return rows;
+  },
+
+  // Puntos georreferenciados para heatmap con intensidad derivada de severidad
+  getHeatmapPoints: async () => {
+    const [rows] = await pool.execute(
+      `SELECT
+         r.id_reporte,
+         r.tipo_contaminacion,
+         r.nivel_severidad,
+         r.estado,
+         r.municipio,
+         r.latitud,
+         r.longitud,
+         CASE r.nivel_severidad
+           WHEN 'critico' THEN 1.0
+           WHEN 'alto' THEN 0.75
+           WHEN 'medio' THEN 0.5
+           WHEN 'bajo' THEN 0.25
+           ELSE 0.25
+         END AS intensidad,
+         r.created_at
+       FROM reportes r
+       WHERE r.deleted_at IS NULL
+        AND r.latitud IS NOT NULL
+        AND r.longitud IS NOT NULL
+       ORDER BY r.created_at DESC`
+    );
+
+    return rows;
+  },
+
 };
