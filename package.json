@@ -6,7 +6,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test:email": "node tests/email/smtp-send.test.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
