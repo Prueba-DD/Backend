@@ -381,6 +381,23 @@ Content-Type: application/json
 
 Valida el token con Facebook. Si el usuario existe por email y esta activo, inicia sesion. Si no existe, crea una cuenta como ciudadano y retorna el JWT del backend. Si la cuenta existe pero esta desactivada, el backend responde con estado `403`.
 
+Respuesta esperada cuando la autenticacion es correcta:
+
+```json
+{
+  "status": "success",
+  "message": "Autenticacion con Facebook exitosa.",
+  "data": {
+    "token": "jwt_generado_por_el_backend",
+    "user": {
+      "id_usuario": 1,
+      "email": "usuario@correo.com",
+      "rol": "ciudadano"
+    }
+  }
+}
+```
+
 ```bash
 GET /auth/facebook/callback?code=...
 ```
@@ -438,6 +455,10 @@ GET /api/auth/facebook/callback?code=...
 ```
 
 En Facebook OAuth el backend usa el email retornado por Facebook para buscar el usuario. Si lo encuentra y esta activo, actualiza el ultimo acceso y genera el JWT. Si no existe, crea el usuario con rol `ciudadano`, marca el email como verificado y luego genera el JWT.
+Antes de responder, el backend valida que el JWT generado coincida con el usuario autenticado.
+
+Nota sobre Google OAuth:
+El endpoint `GET /auth/google/url` genera la URL de autenticacion aunque no exista `GOOGLE_CLIENT_SECRET`, porque para construir esa URL solo se necesita el `GOOGLE_CLIENT_ID` y la URL de callback. Si tampoco existe `GOOGLE_CLIENT_ID`, el backend usa el valor de ejemplo para que el endpoint responda correctamente en desarrollo. Para un login real con Google, igual se deben configurar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
 
 GESTIÓN DE CUENTA:
 

@@ -854,7 +854,10 @@ export const getGoogleAuthUrl = async (req, res, next) => {
 
     return successResponse(
       res,
-      { authUrl: result.authUrl },
+      {
+        authUrl: result.authUrl,
+        configured: result.isConfigured,
+      },
       'URL de autenticación generada exitosamente.',
       200
     );

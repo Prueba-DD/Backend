@@ -1,5 +1,5 @@
 import { OAuth2Client } from 'google-auth-library';
-import { getGoogleConfig } from '../config/google.config.js';
+import { getGoogleAuthUrlConfig, getGoogleConfig } from '../config/google.config.js';
 
 let oauthClient = null;
 
@@ -95,7 +95,11 @@ export const getGoogleUserInfo = async (accessToken) => {
 
 export const generateAuthUrl = () => {
   try {
-    const client = getOAuthClient();
+    const config = getGoogleAuthUrlConfig();
+    const client = new OAuth2Client({
+      clientId: config.clientId,
+      redirectUri: config.callbackUrl,
+    });
     const scopes = [
       'openid',
       'email',
@@ -111,6 +115,7 @@ export const generateAuthUrl = () => {
     return {
       success: true,
       authUrl,
+      isConfigured: config.isConfigured,
     };
   } catch (error) {
     return {
