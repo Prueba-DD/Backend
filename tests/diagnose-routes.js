@@ -21,21 +21,21 @@ async function main() {
 
   // Test rutas básicas
   console.log('Rutas básicas:');
-  await testRoute('GET', '/health');
+  await testRoute('GET', '/api/health');
   await testRoute('GET', '/');
   
   // Test rutas auth
   console.log('\nRutas Auth:');
-  await testRoute('POST', '/auth/register');
-  await testRoute('POST', '/auth/login');
-  await testRoute('POST', '/auth/send-verification-email');
-  await testRoute('GET', '/auth/verify-email');
+  await testRoute('POST', '/api/auth/register');
+  await testRoute('POST', '/api/auth/login');
+  await testRoute('POST', '/api/auth/send-verification-email');
+  await testRoute('GET', '/api/auth/verify-email');
   
   // Test rutas reportes
   console.log('\nRutas Reportes:');
-  await testRoute('GET', '/reportes/mis-reportes');
-  await testRoute('GET', '/reportes');
-  await testRoute('POST', '/reportes');
+  await testRoute('GET', '/api/reportes/mis-reportes');
+  await testRoute('GET', '/api/reportes');
+  await testRoute('POST', '/api/reportes');
 
   // Test con headers adicionales
   console.log('\nRutas con Bearer token inválido:');
@@ -44,12 +44,12 @@ async function main() {
   };
   
   try {
-    const response = await fetch(`${BASE_URL}/auth/send-verification-email`, {
+    const response = await fetch(`${BASE_URL}/api/auth/send-verification-email`, {
       method: 'POST',
       headers,
       body: JSON.stringify({})
     });
-    console.log(`POST /auth/send-verification-email: ${response.status}`);
+    console.log(`POST /api/auth/send-verification-email: ${response.status}`);
     const data = await response.json();
     console.log(`Response:`, data);
   } catch (error) {

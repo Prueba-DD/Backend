@@ -11,6 +11,13 @@ import adminRouter from '../routes/admin.routes.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+const normalizeApiPrefix = (prefix = '/api') => {
+  const trimmedPrefix = prefix.trim();
+  const withLeadingSlash = trimmedPrefix.startsWith('/') ? trimmedPrefix : `/${trimmedPrefix}`;
+  return withLeadingSlash.replace(/\/+$/, '') || '/api';
+};
+
+const apiPrefix = normalizeApiPrefix(process.env.API_PREFIX);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -18,12 +25,12 @@ app.use(express.urlencoded({ extended: true }));
 // Archivos subidos por los usuarios
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// rutas
-app.use('/health', healthRouter);
-app.use('/auth', authRouter);
-app.use('/reportes', reporteRouter);
-app.use('/categorias', categoriaRouter);
-app.use('/admin', adminRouter);
+// rutas de la API
+app.use(`${apiPrefix}/health`, healthRouter);
+app.use(`${apiPrefix}/auth`, authRouter);
+app.use(`${apiPrefix}/reportes`, reporteRouter);
+app.use(`${apiPrefix}/categorias`, categoriaRouter);
+app.use(`${apiPrefix}/admin`, adminRouter);
 
  
 app.use(notFoundHandler);

@@ -41,7 +41,7 @@ const assert = (condition, testName) => {
 async function testConnection() {
   log.info('\n--- TEST 0: Connection to Server ---');
   try {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'test@test.com', password: 'test' }),
@@ -60,7 +60,7 @@ async function testConnection() {
 async function testRegister() {
   log.info('\n--- TEST 1: Register User ---');
   try {
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -88,7 +88,7 @@ async function testRegister() {
 async function testSendVerification(jwt) {
   log.info('\n--- TEST 2: Send Verification Email ---');
   try {
-    const response = await fetch(`${API_URL}/auth/send-verification-email`, {
+    const response = await fetch(`${API_URL}/api/auth/send-verification-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ async function testSendVerification(jwt) {
 async function testNoAuth() {
   log.info('\n--- TEST 3: No Authentication (Should fail) ---');
   try {
-    const response = await fetch(`${API_URL}/auth/send-verification-email`, {
+    const response = await fetch(`${API_URL}/api/auth/send-verification-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -132,7 +132,7 @@ async function testNoAuth() {
 async function testNoToken() {
   log.info('\n--- TEST 4: No Token in Query (Should fail) ---');
   try {
-    const response = await fetch(`${API_URL}/auth/verify-email`, {
+    const response = await fetch(`${API_URL}/api/auth/verify-email`, {
       method: 'GET',
     });
 
@@ -152,7 +152,7 @@ async function testNoToken() {
 async function testInvalidToken() {
   log.info('\n--- TEST 5: Invalid Token (Should fail) ---');
   try {
-    const response = await fetch(`${API_URL}/auth/verify-email?token=invalid_token_xyz123`, {
+    const response = await fetch(`${API_URL}/api/auth/verify-email?token=invalid_token_xyz123`, {
       method: 'GET',
     });
 

@@ -365,13 +365,13 @@ Si todo esta configurado correctamente, el script muestra que las credenciales f
 #### Endpoints de Facebook OAuth
 
 ```bash
-GET /auth/facebook/url
+GET /api/auth/facebook/url
 ```
 
 Genera la URL para enviar al usuario a Facebook.
 
 ```bash
-POST /auth/facebook/login
+POST /api/auth/facebook/login
 Content-Type: application/json
 
 {
@@ -399,7 +399,7 @@ Respuesta esperada cuando la autenticacion es correcta:
 ```
 
 ```bash
-GET /auth/facebook/callback?code=...
+GET /api/auth/facebook/callback?code=...
 ```
 
 Recibe el codigo de Facebook, lo cambia por un `access_token`, obtiene la informacion del usuario y redirige al frontend con el JWT.
@@ -458,7 +458,7 @@ En Facebook OAuth el backend usa el email retornado por Facebook para buscar el 
 Antes de responder, el backend valida que el JWT generado coincida con el usuario autenticado.
 
 Nota sobre Google OAuth:
-El endpoint `GET /auth/google/url` genera la URL de autenticacion aunque no exista `GOOGLE_CLIENT_SECRET`, porque para construir esa URL solo se necesita el `GOOGLE_CLIENT_ID` y la URL de callback. Si tampoco existe `GOOGLE_CLIENT_ID`, el backend usa el valor de ejemplo para que el endpoint responda correctamente en desarrollo. Para un login real con Google, igual se deben configurar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
+El endpoint `GET /api/auth/google/url` genera la URL de autenticacion aunque no exista `GOOGLE_CLIENT_SECRET`, porque para construir esa URL solo se necesita el `GOOGLE_CLIENT_ID` y la URL de callback. Si tampoco existe `GOOGLE_CLIENT_ID`, el backend usa el valor de ejemplo para que el endpoint responda correctamente en desarrollo. Para un login real con Google, igual se deben configurar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
 
 GESTIÓN DE CUENTA:
 
@@ -601,6 +601,10 @@ npm run dev
 
 El servidor iniciará en `http://localhost:3000`
 
+### Prefijo de rutas
+
+La API usa el prefijo `/api` en todas sus rutas. Por ejemplo, autenticacion se consume como `/api/auth` y no como `/auth`. Esto se controla con `API_PREFIX=/api` en el archivo `.env`.
+
 ### Producción
 
 ```bash
@@ -686,70 +690,70 @@ backend/
 
 ##  Endpoints Disponibles
 
-### Autenticación (`/auth`)
+### Autenticación (`/api/auth`)
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `POST` | `/auth/register` | No | Registro de nuevo usuario |
-| `POST` | `/auth/login` | No | Login de usuario |
-| `POST` | `/auth/forgot-password` | No | Solicitar recuperacion de contrasena |
-| `POST` | `/auth/reset-password` | No | Restablecer contrasena con token |
-| `GET` | `/auth/perfil` | Si | Obtener perfil del usuario |
-| `PATCH` | `/auth/perfil` | Si | Actualizar perfil |
-| `PATCH` | `/auth/cambiar-contrasena` | Si | Cambiar contraseña |
+| `POST` | `/api/auth/register` | No | Registro de nuevo usuario |
+| `POST` | `/api/auth/login` | No | Login de usuario |
+| `POST` | `/api/auth/forgot-password` | No | Solicitar recuperacion de contrasena |
+| `POST` | `/api/auth/reset-password` | No | Restablecer contrasena con token |
+| `GET` | `/api/auth/perfil` | Si | Obtener perfil del usuario |
+| `PATCH` | `/api/auth/perfil` | Si | Actualizar perfil |
+| `PATCH` | `/api/auth/cambiar-contrasena` | Si | Cambiar contraseña |
 
-### Reportes (`/reportes`)
-
-| Método | Ruta | Protegida | Descripción |
-|--------|------|-----------|-------------|
-| `GET` | `/reportes` | No | Listar todos los reportes |
-| `GET` | `/reportes/stats` | No | Estadísticas generales |
-| `GET` | `/reportes/:id` | No | Obtener detalle de reporte |
-| `POST` | `/reportes` | Si | Crear nuevo reporte |
-| `PATCH` | `/reportes/:id` | Si | Actualizar reporte |
-| `DELETE` | `/reportes/:id` | Si | Eliminar reporte |
-
-### Categorías (`/categorias`)
+### Reportes (`/api/reportes`)
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/categorias` | No | Listar todas las categorías |
-| `GET` | `/categorias/:codigo` | No | Obtener detalle de categoría |
-| `GET` | `/categorias/:codigo/reportes` | No | Reportes por categoría |
-| `GET` | `/categorias/estadisticas/resumen` | No | Estadísticas por categoría |
-| `GET` | `/categorias/estadisticas/por-severidad` | No | Estadísticas por severidad |
+| `GET` | `/api/reportes` | No | Listar todos los reportes |
+| `GET` | `/api/reportes/stats` | No | Estadísticas generales |
+| `GET` | `/api/reportes/:id` | No | Obtener detalle de reporte |
+| `POST` | `/api/reportes` | Si | Crear nuevo reporte |
+| `PATCH` | `/api/reportes/:id` | Si | Actualizar reporte |
+| `DELETE` | `/api/reportes/:id` | Si | Eliminar reporte |
 
-### Administracion (`/admin`)
+### Categorías (`/api/categorias`)
+
+| Método | Ruta | Protegida | Descripción |
+|--------|------|-----------|-------------|
+| `GET` | `/api/categorias` | No | Listar todas las categorías |
+| `GET` | `/api/categorias/:codigo` | No | Obtener detalle de categoría |
+| `GET` | `/api/categorias/:codigo/reportes` | No | Reportes por categoría |
+| `GET` | `/api/categorias/estadisticas/resumen` | No | Estadísticas por categoría |
+| `GET` | `/api/categorias/estadisticas/por-severidad` | No | Estadísticas por severidad |
+
+### Administracion (`/api/admin`)
 
 Todas las rutas usan `verifyToken` y `requireRoles('admin')` aplicados en el router.
 
 | Metodo | Ruta | Protegida | Descripcion |
 |--------|------|-----------|-------------|
-| `GET` | `/admin/usuarios/stats` | Si | Estadisticas de usuarios y reportes |
-| `GET` | `/admin/usuarios` | Si | Listar usuarios con filtros y paginacion |
-| `GET` | `/admin/usuarios/:id` | Si | Obtener usuario por id |
-| `PATCH` | `/admin/usuarios/:id/rol` | Si | Cambiar rol del usuario |
-| `PATCH` | `/admin/usuarios/:id/estado` | Si | Activar o desactivar usuario |
-| `DELETE` | `/admin/usuarios/:id` | Si | Eliminar usuario (soft delete) |
+| `GET` | `/api/admin/usuarios/stats` | Si | Estadisticas de usuarios y reportes |
+| `GET` | `/api/admin/usuarios` | Si | Listar usuarios con filtros y paginacion |
+| `GET` | `/api/admin/usuarios/:id` | Si | Obtener usuario por id |
+| `PATCH` | `/api/admin/usuarios/:id/rol` | Si | Cambiar rol del usuario |
+| `PATCH` | `/api/admin/usuarios/:id/estado` | Si | Activar o desactivar usuario |
+| `DELETE` | `/api/admin/usuarios/:id` | Si | Eliminar usuario (soft delete) |
 
-### Administracion (`/admin`)
+### Administracion (`/api/admin`)
 
 Todas las rutas usan `verifyToken` y `requireRoles('admin')` aplicados en el router.
 
 | Metodo | Ruta | Protegida | Descripcion |
 |--------|------|-----------|-------------|
-| `GET` | `/admin/usuarios/stats` | [YES] | Estadisticas de usuarios y reportes |
-| `GET` | `/admin/usuarios` | [YES] | Listar usuarios con filtros y paginacion |
-| `GET` | `/admin/usuarios/:id` | [YES] | Obtener usuario por id |
-| `PATCH` | `/admin/usuarios/:id/rol` | [YES] | Cambiar rol del usuario |
-| `PATCH` | `/admin/usuarios/:id/estado` | [YES] | Activar o desactivar usuario |
-| `DELETE` | `/admin/usuarios/:id` | [YES] | Eliminar usuario (soft delete) |
+| `GET` | `/api/admin/usuarios/stats` | [YES] | Estadisticas de usuarios y reportes |
+| `GET` | `/api/admin/usuarios` | [YES] | Listar usuarios con filtros y paginacion |
+| `GET` | `/api/admin/usuarios/:id` | [YES] | Obtener usuario por id |
+| `PATCH` | `/api/admin/usuarios/:id/rol` | [YES] | Cambiar rol del usuario |
+| `PATCH` | `/api/admin/usuarios/:id/estado` | [YES] | Activar o desactivar usuario |
+| `DELETE` | `/api/admin/usuarios/:id` | [YES] | Eliminar usuario (soft delete) |
 
 ### Health
 
 | Método | Ruta | Protegida | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/health` | No | Estado del servidor |
+| `GET` | `/api/health` | No | Estado del servidor |
 
 ---
 
@@ -761,7 +765,7 @@ Se utiliza JWT para identificar al usuario despues de iniciar sesion. El token s
 
 Flujo basico:
 
-1. El usuario envia `email` y `password` a `POST /auth/login`.
+1. El usuario envia `email` y `password` a `POST /api/auth/login`.
 2. El backend valida que el usuario exista, este activo y que la contrasena sea correcta.
 3. Si la autenticacion es exitosa, se genera un JWT con estos datos: `sub`, `uuid`, `rol` y `email`.
 4. El backend valida el token generado antes de enviarlo en la respuesta.
@@ -983,15 +987,15 @@ Ejecutar el script `DATABASE_COMPLETA.sql` en tu cliente MySQL/HeidiSQL:
 ## Endpoints principales
 
 ### Autenticación
-- `POST /auth/register`: registro de usuario
-- `POST /auth/login`: inicio de sesion
+- `POST /api/auth/register`: registro de usuario
+- `POST /api/auth/login`: inicio de sesion
 
 ### Reportes
-- `GET /reportes`: lista de reportes
-- `GET /reportes/:id`: detalle de reporte
-- `POST /reportes`: crear reporte (requiere token)
-- `PATCH /reportes/:id`: actualizar reporte (requiere token)
-- `DELETE /reportes/:id`: eliminar reporte logico (requiere token)
+- `GET /api/reportes`: lista de reportes
+- `GET /api/reportes/:id`: detalle de reporte
+- `POST /api/reportes`: crear reporte (requiere token)
+- `PATCH /api/reportes/:id`: actualizar reporte (requiere token)
+- `DELETE /api/reportes/:id`: eliminar reporte logico (requiere token)
 
 ### 🆕 Categorías de Riesgo
 - `GET /api/categorias`: obtener todas las categorías con estadísticas
@@ -1002,7 +1006,7 @@ Ejecutar el script `DATABASE_COMPLETA.sql` en tu cliente MySQL/HeidiSQL:
 - `GET /api/estadisticas/por-severidad`: estadísticas agrupadas por severidad
 
 ### Salud
-- `GET /health`: estado del servidor y conexion a base de datos
+- `GET /api/health`: estado del servidor y conexion a base de datos
 
 ##  Crear un Reporte
 
