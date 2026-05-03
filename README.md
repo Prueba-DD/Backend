@@ -131,6 +131,7 @@ EMAIL_PORT=587
 EMAIL_USER=tu_usuario@mailtrap.io
 EMAIL_PASS=tu_password
 EMAIL_FROM=noreply@greenalert.com
+EMAIL_TEST_TO=test@greenalert.local
 
 # Frontend
 FRONTEND_URL=http://localhost:5173
@@ -162,6 +163,29 @@ Se incluye archivo `env.example` con variables requeridas como referencia.
 | `EMAIL_USER` | Usuario SMTP | `usuario@mailtrap.io` |
 | `EMAIL_PASS` | Contraseña SMTP | `password123` |
 | `EMAIL_FROM` | Email remitente | `noreply@greenalert.com` |
+| `EMAIL_TEST_TO` | Destinatario para prueba local | `test@greenalert.local` |
+
+#### Prueba local con Mailtrap o SMTP similar
+
+1. Crea una bandeja SMTP en Mailtrap u otro proveedor.
+2. Copia host, puerto, usuario y contraseña al archivo `Backend/.env`.
+3. Define `EMAIL_FROM` y, opcionalmente, `EMAIL_TEST_TO`.
+4. Ejecuta desde la carpeta `Backend`:
+
+```bash
+npm run test:email
+```
+
+El comando valida la conexión SMTP con `transporter.verify()` y luego envía un correo HTML de prueba usando `src/services/email.service.js`.
+
+#### Servicio reutilizable
+
+El servicio central está en `src/services/email.service.js` y expone:
+
+- `enviarCorreo(to, subject, html)`: envía un correo HTML.
+- `verificarConexionSmtp()`: valida credenciales y conexión SMTP.
+- `generarTemplateBaseCorreo(options)`: genera una plantilla HTML base reutilizable.
+- `enviarCorreoBienvenida(email, nombre, apellido)`: correo de bienvenida construido sobre el template base.
 
 #### [CONFIG] Validación Automática
 
