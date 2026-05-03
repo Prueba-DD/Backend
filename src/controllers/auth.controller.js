@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { UsuarioModel } from '../models/usuario.model.js';
+import { RefreshTokenModel } from '../models/refresh-token.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
 import {
   enviarCorreo,
@@ -38,6 +39,8 @@ import {
 } from '../utils/constantes-validacion.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DEFAULT_ACCESS_EXPIRES_IN = '15m';
+const DEFAULT_REFRESH_EXPIRES_DAYS = 7;
 
 const hashPassword = (password) => {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -74,7 +77,7 @@ const validateGeneratedToken = (token, secret, user) => {
 
 const buildToken = (user) => {
   const secret = getJwtSecret();
-  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+  const expiresIn = process.env.JWT_EXPIRES_IN || DEFAULT_ACCESS_EXPIRES_IN;
 
   const token = jwt.sign(
     {
@@ -90,6 +93,56 @@ const buildToken = (user) => {
   validateGeneratedToken(token, secret, user);
 
   return token;
+};
+
+const getRefreshExpiresDays = () => {
+  const value = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_REFRESH_EXPIRES_DAYS;
+};
+
+const getRefreshTokenExpiration = () => {
+  const exp = new Date();
+  exp.setDate(exp.getDate() + getRefreshExpiresDays());
+  return exp;
+};
+
+const buildRefreshToken = () => {
+  const rawToken = crypto.randomBytes(64).toString('hex');
+  return {
+    rawToken,
+    tokenHash: hashToken(rawToken),
+    expiresAt: getRefreshTokenExpiration(),
+  };
+};
+
+const createRefreshTokenForUser = async (user, req) => {
+  const { rawToken, tokenHash, expiresAt } = buildRefreshToken();
+
+  await RefreshTokenModel.create({
+    id_usuario: user.id_usuario,
+    token_hash: tokenHash,
+    expires_at: expiresAt,
+    user_agent: req.get('user-agent')?.slice(0, 255) || null,
+    ip_address: req.ip || null,
+  });
+
+  return {
+    refreshToken: rawToken,
+    refreshTokenExpiresAt: expiresAt,
+  };
+};
+
+const buildAuthPayload = async (user, req) => {
+  const accessToken = buildToken(user);
+  const refresh = await createRefreshTokenForUser(user, req);
+
+  return {
+    token: accessToken,
+    accessToken,
+    refreshToken: refresh.refreshToken,
+    refreshTokenExpiresAt: refresh.refreshTokenExpiresAt,
+    user: toPublicUser(user),
+  };
 };
 
 const toPublicUser = (user) => ({
@@ -243,7 +296,7 @@ export const register = async (req, res, next) => {
       // No fallar el registro si falla el email, pero loguear el error
     }
 
-    const token = buildToken(createdUser);
+    const authPayload = await buildAuthPayload(createdUser, req);
 
     // Enviar correo de bienvenida de forma no-bloqueante (fire-and-forget)
     enviarCorreoBienvenida(
@@ -257,8 +310,7 @@ export const register = async (req, res, next) => {
     return successResponse(
       res,
       {
-        token,
-        user: toPublicUser(createdUser),
+        ...authPayload,
         pendingEmailVerification: true,
       },
       'Cuenta creada correctamente. Verifica tu email con el enlace enviado.',
@@ -298,9 +350,80 @@ export const login = async (req, res, next) => {
 
     await UsuarioModel.updateUltimoAcceso(user.id_usuario);
 
-    const token = buildToken(user);
+    const authPayload = await buildAuthPayload(user, req);
 
-    return successResponse(res, { token, user: toPublicUser(user) }, 'Inicio de sesion exitoso.');
+    return successResponse(res, authPayload, 'Inicio de sesion exitoso.');
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const refreshAccessToken = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body ?? {};
+
+    if (typeof refreshToken !== 'string' || refreshToken.length < 32) {
+      return errorResponse(res, 'Refresh token requerido.', 400);
+    }
+
+    const currentHash = hashToken(refreshToken);
+    const current = await RefreshTokenModel.findActiveByHash(currentHash);
+
+    if (!current) {
+      return errorResponse(res, 'Refresh token invalido o expirado.', 401);
+    }
+
+    if (!current.activo) {
+      await RefreshTokenModel.revokeByHash(currentHash);
+      return errorResponse(res, 'Cuenta desactivada. Contacta al administrador.', 403);
+    }
+
+    const next = buildRefreshToken();
+    const rotated = await RefreshTokenModel.rotate({
+      current_hash: currentHash,
+      next_hash: next.tokenHash,
+      expires_at: next.expiresAt,
+      user_agent: req.get('user-agent')?.slice(0, 255) || null,
+      ip_address: req.ip || null,
+    });
+
+    if (!rotated) {
+      return errorResponse(res, 'Refresh token invalido o expirado.', 401);
+    }
+
+    const accessToken = buildToken(current);
+
+    return successResponse(
+      res,
+      {
+        token: accessToken,
+        accessToken,
+        refreshToken: next.rawToken,
+        refreshTokenExpiresAt: next.expiresAt,
+        user: toPublicUser(current),
+      },
+      'Token renovado correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    const { refreshToken, allDevices = false } = req.body ?? {};
+
+    if (allDevices && req.user?.sub) {
+      await RefreshTokenModel.revokeAllForUser(req.user.sub);
+      return successResponse(res, null, 'Sesion cerrada en todos los dispositivos.');
+    }
+
+    if (typeof refreshToken !== 'string' || refreshToken.length < 32) {
+      return errorResponse(res, 'Refresh token requerido.', 400);
+    }
+
+    await RefreshTokenModel.revokeByHash(hashToken(refreshToken));
+    return successResponse(res, null, 'Sesion cerrada correctamente.');
   } catch (error) {
     return next(error);
   }
@@ -864,14 +987,11 @@ export const googleLogin = async (req, res, next) => {
     }
 
     // Generar JWT
-    const token = buildToken(user);
+    const authPayload = await buildAuthPayload(user, req);
 
     return successResponse(
       res,
-      { 
-        token,
-        user: toPublicUser(user),
-      },
+      authPayload,
       'Autenticación con Google exitosa.',
       200
     );
@@ -947,11 +1067,11 @@ export const googleCallback = async (req, res, next) => {
     }
 
     // Generar JWT
-    const token = buildToken(user);
+    const authPayload = await buildAuthPayload(user, req);
 
     // Redirigir al frontend con el token
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(toPublicUser(user)))}`;
+    const redirectUrl = `${frontendUrl}/auth/callback?token=${authPayload.accessToken}&refreshToken=${authPayload.refreshToken}&user=${encodeURIComponent(JSON.stringify(authPayload.user))}`;
 
     return res.redirect(redirectUrl);
   } catch (error) {
@@ -1094,8 +1214,8 @@ export const facebookCallback = async (req, res, next) => {
       return errorResponse(res, 'No fue posible autenticar con Facebook.', 400);
     }
 
-    const token = buildToken(user);
-    const publicUser = toPublicUser(user);
+    const authPayload = await buildAuthPayload(user, req);
+    const publicUser = authPayload.user;
     const callbackResponseMode = (process.env.FACEBOOK_CALLBACK_RESPONSE || '').toLowerCase();
     const shouldRedirect = callbackResponseMode === 'redirect' || (
       callbackResponseMode !== 'json' && !isDevelopment()
@@ -1105,7 +1225,10 @@ export const facebookCallback = async (req, res, next) => {
       return successResponse(
         res,
         {
-          token,
+          token: authPayload.accessToken,
+          accessToken: authPayload.accessToken,
+          refreshToken: authPayload.refreshToken,
+          refreshTokenExpiresAt: authPayload.refreshTokenExpiresAt,
           user: publicUser,
         },
         'Inicio de sesion con Facebook exitoso.',
@@ -1114,7 +1237,7 @@ export const facebookCallback = async (req, res, next) => {
     }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(publicUser))}`;
+    const redirectUrl = `${frontendUrl}/auth/callback?token=${authPayload.accessToken}&refreshToken=${authPayload.refreshToken}&user=${encodeURIComponent(JSON.stringify(publicUser))}`;
 
     return res.redirect(redirectUrl);
   } catch (error) {

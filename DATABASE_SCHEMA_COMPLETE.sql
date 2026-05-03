@@ -16,7 +16,7 @@
 -- TABLE: usuarios
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS usuarios (
-  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   uuid VARCHAR(36) UNIQUE NOT NULL,
   google_id VARCHAR(255) UNIQUE NULL,
   facebook_id VARCHAR(255) UNIQUE NULL,
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS categorias_riesgo (
 CREATE TABLE IF NOT EXISTS reportes (
   id_reporte INT AUTO_INCREMENT PRIMARY KEY,
   uuid VARCHAR(36) UNIQUE NOT NULL,
-  id_usuario INT NOT NULL,
+  id_usuario BIGINT UNSIGNED NOT NULL,
   tipo_contaminacion VARCHAR(50) NOT NULL,
   estado ENUM('pendiente', 'en_revision', 'verificado', 'en_proceso', 'rechazado', 'resuelto') DEFAULT 'en_revision',
   nivel_severidad ENUM('bajo', 'medio', 'alto', 'critico') DEFAULT 'medio',
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS evidencias (
   id_evidencia INT AUTO_INCREMENT PRIMARY KEY,
   uuid VARCHAR(36) UNIQUE NOT NULL,
   id_reporte INT NOT NULL,
-  id_usuario INT NOT NULL,
+  id_usuario BIGINT UNSIGNED NOT NULL,
   tipo_archivo VARCHAR(50) NULL,
   url_archivo VARCHAR(255) NOT NULL,
   nombre_original VARCHAR(255) NULL,
@@ -158,6 +158,28 @@ CREATE TABLE IF NOT EXISTS evidencias (
   INDEX idx_created_at (created_at),
   INDEX idx_orden (orden),
   INDEX idx_deleted_at (deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- TABLE: refresh_tokens
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id_refresh_token INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario BIGINT UNSIGNED NOT NULL,
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  revoked_at DATETIME NULL,
+  user_agent VARCHAR(255) NULL,
+  ip_address VARCHAR(45) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_refresh_tokens_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+
+  INDEX idx_refresh_token_hash (token_hash),
+  INDEX idx_refresh_usuario (id_usuario),
+  INDEX idx_refresh_expires_at (expires_at),
+  INDEX idx_refresh_revoked_at (revoked_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
