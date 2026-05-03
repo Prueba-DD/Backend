@@ -2,7 +2,11 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { UsuarioModel } from '../models/usuario.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
-import { enviarCorreo, enviarCorreoBienvenida } from '../services/email.service.js';
+import {
+  enviarCorreo,
+  enviarCorreoBienvenida,
+  generarTemplateBaseCorreo,
+} from '../services/email.service.js';
 import { verifyGoogleToken, exchangeCodeForTokens, getGoogleUserInfo, generateAuthUrl } from '../services/google-oauth.service.js';
 import {
   exchangeFacebookCodeForToken,
@@ -154,6 +158,14 @@ const getVerificationTokenExpiration = () => {
   return exp;
 };
 
+const buildEmailVerificationLink = (token) => {
+  const apiBaseUrl = process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+  const apiPrefix = (process.env.API_PREFIX || '/api').replace(/\/+$/, '');
+  return `${apiBaseUrl}${apiPrefix}/auth/verify-email?token=${token}`;
+};
+
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
 export const register = async (req, res, next) => {
   try {
     const { nombre, apellido, email, password, telefono } = req.body ?? {};
@@ -202,42 +214,32 @@ export const register = async (req, res, next) => {
 
     // Generar y enviar OTP automáticamente después del registro
     try {
-      const otpCode = generateOtpCode();
-      const otpCodeHash = hashOtpCode(otpCode);
-      const otpExp = new Date(Date.now() + OTP_MINUTES * 60 * 1000);
+      const { rawToken, tokenHash } = buildVerificationToken();
+      const tokenExp = getVerificationTokenExpiration();
+      const verificationLink = buildEmailVerificationLink(rawToken);
 
-      // Guardar OTP hasheado en BD
-      await UsuarioModel.setOtp(idUsuario, otpCodeHash, otpExp);
-      await UsuarioModel.updateOtpLastRequest(idUsuario);
-
-      // Generar plantilla HTML del email
-      const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #333; text-align: center;">¡Bienvenido a Green Alert!</h2>
-          <p style="color: #666; font-size: 16px;">Hola ${createdUser.nombre},</p>
-          <p style="color: #666; font-size: 16px;">Tu cuenta ha sido creada correctamente. Por favor verifica tu correo electrónico para completar el registro.</p>
-          
-          <div style="background-color: #f5f5f5; border: 2px solid #007bff; border-radius: 8px; padding: 30px; margin: 30px 0; text-align: center;">
-            <p style="color: #999; font-size: 14px; margin: 0 0 15px 0;">Tu código de verificación:</p>
-            <h1 style="color: #007bff; font-size: 48px; letter-spacing: 10px; margin: 0;">${otpCode}</h1>
-            <p style="color: #999; font-size: 14px; margin: 15px 0 0 0;">Este código expira en ${OTP_MINUTES} minutos</p>
+      await UsuarioModel.setEmailVerificationToken(idUsuario, tokenHash, tokenExp);
+      const html = generarTemplateBaseCorreo({
+        title: 'Verifica tu correo',
+        subtitle: 'Confirma tu cuenta de GreenAlert',
+        previewText: 'Confirma tu correo para activar tu cuenta de GreenAlert.',
+        actionUrl: verificationLink,
+        actionText: 'Verificar correo',
+        content: `
+          <div class="message">
+            Hola ${createdUser.nombre}, tu cuenta fue creada correctamente.
+            Para completar el registro, confirma tu correo electronico con el siguiente enlace.
           </div>
-          
-          <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <p style="color: #856404; margin: 0; font-size: 14px;">
-              <strong>[SECURITY]</strong> Nunca compartas este código con nadie. El equipo de Green Alert nunca te pedirá este código.
-            </p>
+          <div class="panel">
+            <h3>Seguridad</h3>
+            <p>Este enlace expira en ${VERIFICATION_TOKEN_HOURS} horas. Si no creaste esta cuenta, ignora este correo.</p>
           </div>
-          
-          <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-            Si no creaste esta cuenta, por favor ignora este correo.
-          </p>
-        </div>
-      `;
+        `,
+      });
 
-      await enviarCorreo(createdUser.email, 'Verifica tu Correo - Green Alert', html);
+      await enviarCorreo(createdUser.email, 'Verifica tu correo - GreenAlert', html);
     } catch (emailError) {
-      console.error('Error enviando OTP en registro:', emailError);
+      console.error('Error enviando verificacion en registro:', emailError);
       // No fallar el registro si falla el email, pero loguear el error
     }
 
@@ -259,7 +261,7 @@ export const register = async (req, res, next) => {
         user: toPublicUser(createdUser),
         pendingEmailVerification: true,
       },
-      'Cuenta creada correctamente. Verifica tu email con el código enviado.',
+      'Cuenta creada correctamente. Verifica tu email con el enlace enviado.',
       201
     );
   } catch (error) {
@@ -447,12 +449,23 @@ export const forgotPassword = async (req, res, next) => {
       await UsuarioModel.setResetToken(user.id_usuario, tokenHash, tokenExp);
 
       const resetLink = buildResetLink(rawToken);
-      const html = `
-        <p>Se recibio una solicitud para recuperar tu contrasena.</p>
-        <p>Haz clic en el siguiente enlace para crear una nueva contrasena:</p>
-        <p><a href="${resetLink}">${resetLink}</a></p>
-        <p>Este enlace expira en ${RESET_TOKEN_MINUTES} minutos.</p>
-      `;
+      const html = generarTemplateBaseCorreo({
+        title: 'Recupera tu contrasena',
+        subtitle: 'Solicitud de restablecimiento',
+        previewText: 'Usa este enlace para crear una nueva contrasena.',
+        actionUrl: resetLink,
+        actionText: 'Restablecer contrasena',
+        content: `
+          <div class="message">
+            Se recibio una solicitud para recuperar tu contrasena.
+            Haz clic en el boton para crear una nueva contrasena.
+          </div>
+          <div class="panel">
+            <h3>Seguridad</h3>
+            <p>Este enlace expira en ${RESET_TOKEN_MINUTES} minutos. Si no solicitaste este cambio, ignora este correo.</p>
+          </div>
+        `,
+      });
 
       await enviarCorreo(user.email, 'Recuperacion de contrasena', html);
     }
@@ -494,7 +507,7 @@ export const resetPassword = async (req, res, next) => {
       return errorResponse(res, 'La nueva contrasena no cumple con los requisitos de seguridad.', 400);
     }
 
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = hashToken(token);
     const user = await UsuarioModel.findByResetToken(tokenHash);
 
     if (!user || !user.token_reset_exp) {
@@ -503,6 +516,7 @@ export const resetPassword = async (req, res, next) => {
 
     const expiresAt = new Date(user.token_reset_exp);
     if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+      await UsuarioModel.clearResetToken(user.id_usuario);
       return errorResponse(res, 'Token invalido o expirado.', 400);
     }
 
@@ -516,6 +530,40 @@ export const resetPassword = async (req, res, next) => {
     await UsuarioModel.clearResetToken(user.id_usuario);
 
     return successResponse(res, null, 'Contrasena actualizada correctamente.', 200);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.query ?? {};
+
+    if (typeof token !== 'string' || token.length < 10) {
+      return errorResponse(res, 'Token de verificacion invalido.', 400);
+    }
+
+    const tokenHash = hashToken(token);
+    const user = await UsuarioModel.findByEmailVerificationToken(tokenHash);
+
+    if (!user || !user.email_verification_exp) {
+      return errorResponse(res, 'Token de verificacion invalido o expirado.', 400);
+    }
+
+    if (user.email_verificado) {
+      await UsuarioModel.clearEmailVerificationToken(user.id_usuario);
+      return successResponse(res, null, 'El correo ya estaba verificado.', 200);
+    }
+
+    const expiresAt = new Date(user.email_verification_exp);
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+      await UsuarioModel.clearEmailVerificationToken(user.id_usuario);
+      return errorResponse(res, 'Token de verificacion invalido o expirado.', 400);
+    }
+
+    await UsuarioModel.verifyEmail(user.id_usuario);
+
+    return successResponse(res, null, 'Correo verificado correctamente.', 200);
   } catch (error) {
     return next(error);
   }

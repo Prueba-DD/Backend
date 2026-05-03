@@ -219,6 +219,43 @@ export const UsuarioModel = {
     return result.affectedRows > 0;
   },
 
+  // Guarda token de verificacion de correo y expiracion
+  setEmailVerificationToken: async (id_usuario, tokenHash, tokenExp) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET email_verification_token = ?, email_verification_exp = ?, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [tokenHash, tokenExp, id_usuario]
+    );
+
+    return result.affectedRows > 0;
+  },
+
+  // Busca usuario por token de verificacion de correo
+  findByEmailVerificationToken: async (tokenHash) => {
+    const [rows] = await pool.execute(
+      `SELECT id_usuario, email, email_verificado, email_verification_exp
+       FROM usuarios
+       WHERE email_verification_token = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [tokenHash]
+    );
+
+    return rows[0] ?? null;
+  },
+
+  // Limpia token de verificacion de correo
+  clearEmailVerificationToken: async (id_usuario) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET email_verification_token = NULL, email_verification_exp = NULL, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [id_usuario]
+    );
+
+    return result.affectedRows > 0;
+  },
+
   // Actualiza rol del usuario
   updateRol: async (id_usuario, rol) => {
     const [result] = await pool.execute(
@@ -337,7 +374,10 @@ export const UsuarioModel = {
   verifyEmail: async (id_usuario) => {
     const [result] = await pool.execute(
       `UPDATE usuarios
-       SET email_verificado = 1, updated_at = NOW()
+       SET email_verificado = 1,
+           email_verification_token = NULL,
+           email_verification_exp = NULL,
+           updated_at = NOW()
        WHERE id_usuario = ? AND deleted_at IS NULL`,
       [id_usuario]
     );

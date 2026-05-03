@@ -494,6 +494,10 @@ GESTIÓN DE CUENTA:
 GET /api/auth/perfil (requiere JWT)
   Retorna: { user }
 
+GET /api/auth/verify-email?token=...
+  Retorna: { message }
+  Descripcion: verifica la cuenta con el token enviado por correo. El token se guarda hasheado y expira en 24 horas.
+
 PATCH /api/auth/perfil (requiere JWT)
   Body: { nombre?, apellido?, telefono?, avatar_url? }
   Retorna: { user }
@@ -505,10 +509,12 @@ PATCH /api/auth/cambiar-contrasena (requiere JWT)
 POST /api/auth/forgot-password
   Body: { email }
   Retorna: { message }
+  Descripcion: genera y guarda un token hasheado con expiracion de 30 minutos, y envia un enlace de recuperacion por correo.
 
 POST /api/auth/reset-password
   Body: { token, new_password }
   Retorna: { message }
+  Descripcion: valida token y expiracion, actualiza la contrasena e invalida el token despues de usarlo.
 
 POST /api/auth/enviar-verificacion (requiere JWT)
   Retorna: { message, expiresIn }
@@ -632,6 +638,7 @@ El servidor iniciará en `http://localhost:3000`
 ### Prefijo de rutas
 
 La API usa el prefijo `/api` en todas sus rutas. Por ejemplo, autenticacion se consume como `/api/auth` y no como `/auth`. Esto se controla con `API_PREFIX=/api` en el archivo `.env`.
+Para construir enlaces enviados por correo, como verificacion de cuenta, usa `API_PUBLIC_URL=http://localhost:3000` en desarrollo o la URL publica del backend en produccion.
 
 ### Producción
 
@@ -724,6 +731,7 @@ backend/
 |--------|------|-----------|-------------|
 | `POST` | `/api/auth/register` | No | Registro de nuevo usuario |
 | `POST` | `/api/auth/login` | No | Login de usuario |
+| `GET` | `/api/auth/verify-email` | No | Verificar cuenta con token de correo |
 | `POST` | `/api/auth/forgot-password` | No | Solicitar recuperacion de contrasena |
 | `POST` | `/api/auth/reset-password` | No | Restablecer contrasena con token |
 | `GET` | `/api/auth/perfil` | Si | Obtener perfil del usuario |

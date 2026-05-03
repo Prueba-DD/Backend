@@ -5,6 +5,7 @@ import {
 	login,
 	forgotPassword,
 	resetPassword,
+	verifyEmail,
 	getPerfil,
 	updatePerfil,
 	changePassword,
@@ -22,6 +23,7 @@ const authRouter = Router();
 
 authRouter.post('/register', register);
 authRouter.post('/login', login);
+authRouter.get('/verify-email', verifyEmail);
 authRouter.post('/forgot-password', forgotPassword);
 authRouter.post('/reset-password', resetPassword);
 authRouter.get('/perfil', verifyToken, getPerfil);
