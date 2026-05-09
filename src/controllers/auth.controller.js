@@ -179,7 +179,15 @@ const errorResponseWithDevelopmentDetails = (
 };
 
 const verifyPassword = (password, storedHash) => {
+  if (typeof storedHash !== 'string' || !storedHash.includes(':')) {
+    return false;
+  }
+
   const [salt, key] = storedHash.split(':');
+  if (!salt || !key) {
+    return false;
+  }
+
   const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
   return key === derivedKey;
 };
@@ -342,6 +350,18 @@ export const login = async (req, res, next) => {
 
     if (!user.activo) {
       return errorResponse(res, 'Cuenta desactivada. Contacta al administrador.', 403);
+    }
+
+    if (!user.password_hash) {
+      if (user.google_id || user.facebook_id) {
+        return errorResponse(
+          res,
+          'Cuenta registrada con Google o Facebook. Inicia sesion con ese proveedor o crea una contrasena.',
+          400
+        );
+      }
+
+      return errorResponse(res, 'No se puede iniciar sesion con contrasena en este momento.', 400);
     }
 
     if (!verifyPassword(password, user.password_hash)) {
