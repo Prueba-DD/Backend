@@ -1,4 +1,9 @@
-import { ESTADO_INICIAL_REPORTE, ReporteModel } from '../models/reporte.model.js';
+import {
+  ESTADO_INICIAL_REPORTE,
+  ESTADOS_REPORTE_PERMITIDOS,
+  NIVELES_SEVERIDAD_PERMITIDOS,
+  ReporteModel,
+} from '../models/reporte.model.js';
 import { CategoriaRiesgoModel } from '../models/categoria-riesgo.model.js';
 import { UsuarioModel }   from '../models/usuario.model.js';
 import { EvidenciaModel } from '../models/evidencia.model.js';
@@ -25,6 +30,14 @@ const parseCoordinate = (value, { field, min, max }) => {
 
   return { value: parsed };
 };
+
+const normalizeEnumValue = (value) => (
+  typeof value === 'string' ? value.trim().toLowerCase() : ''
+);
+
+const buildAllowedValuesMessage = (field, allowedValues) => (
+  `${field} debe ser uno de: ${allowedValues.join(', ')}.`
+);
 
 const toCsvValue = (value) => {
   if (value === null || value === undefined) return '';
@@ -72,6 +85,16 @@ export const createReporte = async (req, res, next) => {
     }
 
     const tipoContaminacion = tipo_contaminacion.trim().toLowerCase();
+    const nivelSeveridad = normalizeEnumValue(nivel_severidad);
+
+    if (!NIVELES_SEVERIDAD_PERMITIDOS.includes(nivelSeveridad)) {
+      return errorResponse(
+        res,
+        buildAllowedValuesMessage('El nivel de severidad', NIVELES_SEVERIDAD_PERMITIDOS),
+        400
+      );
+    }
+
     const categoriaValida = await CategoriaRiesgoModel.esValido(tipoContaminacion);
 
     if (!categoriaValida) {
@@ -101,7 +124,7 @@ export const createReporte = async (req, res, next) => {
     const idReporte = await ReporteModel.create({
       id_usuario:       req.user.sub,
       tipo_contaminacion: tipoContaminacion,
-      nivel_severidad:    nivel_severidad.trim(),
+      nivel_severidad:    nivelSeveridad,
       titulo:             titulo.trim(),
       descripcion:        descripcion?.trim() || null,
       direccion:          direccion.trim(),
@@ -324,6 +347,34 @@ export const updateReporte = async (req, res, next) => {
 
     if (Object.keys(campos).length === 0) {
       return errorResponse(res, 'No se enviaron campos válidos para actualizar.', 400);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(campos, 'estado')) {
+      const estado = normalizeEnumValue(campos.estado);
+
+      if (!ESTADOS_REPORTE_PERMITIDOS.includes(estado)) {
+        return errorResponse(
+          res,
+          buildAllowedValuesMessage('El estado', ESTADOS_REPORTE_PERMITIDOS),
+          400
+        );
+      }
+
+      campos.estado = estado;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(campos, 'nivel_severidad')) {
+      const nivelSeveridad = normalizeEnumValue(campos.nivel_severidad);
+
+      if (!NIVELES_SEVERIDAD_PERMITIDOS.includes(nivelSeveridad)) {
+        return errorResponse(
+          res,
+          buildAllowedValuesMessage('El nivel de severidad', NIVELES_SEVERIDAD_PERMITIDOS),
+          400
+        );
+      }
+
+      campos.nivel_severidad = nivelSeveridad;
     }
 
     // Validar que comentario_moderacion es obligatorio si se rechaza

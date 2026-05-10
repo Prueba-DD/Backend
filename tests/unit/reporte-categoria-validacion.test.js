@@ -76,6 +76,28 @@ test('createReporte crea reporte cuando la categoria existe y esta activa', asyn
   assert.equal(next.mock.callCount(), 0);
 });
 
+test('createReporte rechaza nivel de severidad invalido antes de insertar', async (t) => {
+  t.mock.method(CategoriaRiesgoModel, 'esValido', async () => {
+    throw new Error('No debe validar categoria si la severidad es invalida');
+  });
+  t.mock.method(ReporteModel, 'create', async () => {
+    throw new Error('No debe insertar reportes con severidad invalida');
+  });
+
+  const req = createValidRequest({ nivel_severidad: 'urgente' });
+  const res = createMockResponse();
+  const next = t.mock.fn();
+
+  await createReporte(req, res, next);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.status, 'error');
+  assert.equal(res.body.message, 'El nivel de severidad debe ser uno de: bajo, medio, alto, critico.');
+  assert.equal(CategoriaRiesgoModel.esValido.mock.callCount(), 0);
+  assert.equal(ReporteModel.create.mock.callCount(), 0);
+  assert.equal(next.mock.callCount(), 0);
+});
+
 test('createReporte rechaza latitud fuera de rango', async (t) => {
   t.mock.method(CategoriaRiesgoModel, 'esValido', async () => true);
   t.mock.method(ReporteModel, 'create', async () => {

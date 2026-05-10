@@ -2,6 +2,20 @@ import pool from '../config/database.js';
 import { randomUUID } from 'crypto';
 
 export const ESTADO_INICIAL_REPORTE = 'pendiente';
+export const ESTADOS_REPORTE_PERMITIDOS = [
+  'pendiente',
+  'en_revision',
+  'verificado',
+  'en_proceso',
+  'rechazado',
+  'resuelto',
+];
+export const NIVELES_SEVERIDAD_PERMITIDOS = [
+  'bajo',
+  'medio',
+  'alto',
+  'critico',
+];
 
 export const ReporteModel = {
   
