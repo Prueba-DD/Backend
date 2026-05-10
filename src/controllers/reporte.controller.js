@@ -4,9 +4,26 @@ import { UsuarioModel }   from '../models/usuario.model.js';
 import { EvidenciaModel } from '../models/evidencia.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
 
-const parseCoord = (val) => {
-  const n = parseFloat(val);
-  return isNaN(n) ? null : n;
+const parseCoordinate = (value, { field, min, max }) => {
+  if (value === undefined || value === null || value === '') {
+    return { value: null };
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return {
+      error: `${field} debe ser un numero valido.`,
+    };
+  }
+
+  if (parsed < min || parsed > max) {
+    return {
+      error: `${field} debe estar entre ${min} y ${max}.`,
+    };
+  }
+
+  return { value: parsed };
 };
 
 const toCsvValue = (value) => {
@@ -61,8 +78,25 @@ export const createReporte = async (req, res, next) => {
       return errorResponse(res, 'La categoría de contaminación no existe o está inactiva.', 400);
     }
 
-    const lat = parseCoord(latitud);
-    const lng = parseCoord(longitud);
+    const parsedLatitud = parseCoordinate(latitud, {
+      field: 'La latitud',
+      min: -90,
+      max: 90,
+    });
+
+    if (parsedLatitud.error) {
+      return errorResponse(res, parsedLatitud.error, 400);
+    }
+
+    const parsedLongitud = parseCoordinate(longitud, {
+      field: 'La longitud',
+      min: -180,
+      max: 180,
+    });
+
+    if (parsedLongitud.error) {
+      return errorResponse(res, parsedLongitud.error, 400);
+    }
 
     const idReporte = await ReporteModel.create({
       id_usuario:       req.user.sub,
@@ -73,8 +107,8 @@ export const createReporte = async (req, res, next) => {
       direccion:          direccion.trim(),
       municipio:          municipio?.trim() || null,
       departamento:       departamento?.trim() || null,
-      latitud:            lat,
-      longitud:           lng,
+      latitud:            parsedLatitud.value,
+      longitud:           parsedLongitud.value,
     });
 
     const reporte = await ReporteModel.findById(idReporte);

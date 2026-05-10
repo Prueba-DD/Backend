@@ -71,5 +71,45 @@ test('createReporte crea reporte cuando la categoria existe y esta activa', asyn
   assert.equal(res.body.status, 'success');
   assert.equal(res.body.data.reporte.tipo_contaminacion, 'inundacion');
   assert.equal(ReporteModel.create.mock.calls[0].arguments[0].tipo_contaminacion, 'inundacion');
+  assert.equal(ReporteModel.create.mock.calls[0].arguments[0].latitud, 10.45);
+  assert.equal(ReporteModel.create.mock.calls[0].arguments[0].longitud, -73.25);
+  assert.equal(next.mock.callCount(), 0);
+});
+
+test('createReporte rechaza latitud fuera de rango', async (t) => {
+  t.mock.method(CategoriaRiesgoModel, 'esValido', async () => true);
+  t.mock.method(ReporteModel, 'create', async () => {
+    throw new Error('No debe insertar reportes con latitud invalida');
+  });
+
+  const req = createValidRequest({ latitud: 91 });
+  const res = createMockResponse();
+  const next = t.mock.fn();
+
+  await createReporte(req, res, next);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.status, 'error');
+  assert.equal(res.body.message, 'La latitud debe estar entre -90 y 90.');
+  assert.equal(ReporteModel.create.mock.callCount(), 0);
+  assert.equal(next.mock.callCount(), 0);
+});
+
+test('createReporte rechaza longitud fuera de rango', async (t) => {
+  t.mock.method(CategoriaRiesgoModel, 'esValido', async () => true);
+  t.mock.method(ReporteModel, 'create', async () => {
+    throw new Error('No debe insertar reportes con longitud invalida');
+  });
+
+  const req = createValidRequest({ longitud: -181 });
+  const res = createMockResponse();
+  const next = t.mock.fn();
+
+  await createReporte(req, res, next);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.status, 'error');
+  assert.equal(res.body.message, 'La longitud debe estar entre -180 y 180.');
+  assert.equal(ReporteModel.create.mock.callCount(), 0);
   assert.equal(next.mock.callCount(), 0);
 });
