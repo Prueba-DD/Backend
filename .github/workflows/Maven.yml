@@ -32,7 +32,7 @@ jobs:
 
       - name: Run tests if configured
         run: |
-          if npm pkg get scripts.test | grep -qv undefined; then
+          if node -e "const pkg = require('./package.json'); process.exit(pkg.scripts && pkg.scripts.test ? 0 : 1);"; then
             npm test
           else
             echo "No standard test script configured; skipping tests."
