@@ -1,4 +1,4 @@
-import { ReporteModel }   from '../models/reporte.model.js';
+import { ESTADO_INICIAL_REPORTE, ReporteModel } from '../models/reporte.model.js';
 import { UsuarioModel }   from '../models/usuario.model.js';
 import { EvidenciaModel } from '../models/evidencia.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
@@ -259,8 +259,8 @@ export const updateReporte = async (req, res, next) => {
       return errorResponse(res, 'No tienes permiso para editar este reporte.', 403);
     }
 
-    // Owners solo pueden editar reportes en estado 'pendiente'
-    if (isOwner && !isMod && reporte.estado !== 'pendiente') {
+    // Owners solo pueden editar reportes en estado inicial.
+    if (isOwner && !isMod && reporte.estado !== ESTADO_INICIAL_REPORTE) {
       return errorResponse(
         res,
         'No puedes editar un reporte que ya está en revisión o procesado.',
@@ -314,8 +314,8 @@ export const deleteReporte = async (req, res, next) => {
       return errorResponse(res, 'No tienes permiso para eliminar este reporte.', 403);
     }
 
-    // Owners solo pueden eliminar reportes en estado 'pendiente'
-    if (isOwner && !isMod && reporte.estado !== 'pendiente') {
+    // Owners solo pueden eliminar reportes en estado inicial.
+    if (isOwner && !isMod && reporte.estado !== ESTADO_INICIAL_REPORTE) {
       return errorResponse(
         res,
         'No puedes eliminar un reporte que ya está en revisión o procesado.',
