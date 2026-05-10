@@ -9,6 +9,41 @@ jobs:
   backend-validation:
     name: Validate backend
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: green_alert_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      API_URL: http://localhost:3000
+      API_PREFIX: /api
+      API_PUBLIC_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:5173
+      JWT_SECRET: ci-test-secret
+      JWT_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_DAYS: 7
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: green_alert_test
+      EMAIL_TRANSPORT: json
+      EMAIL_HOST: localhost
+      EMAIL_PORT: 587
+      EMAIL_USER: ci@example.com
+      EMAIL_PASS: ci-password
+      EMAIL_FROM: noreply@greenalert.test
+      EMAIL_TEST_TO: test@greenalert.test
 
     steps:
       - name: Checkout repository
@@ -22,6 +57,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Initialize test database
+        run: mysql -h 127.0.0.1 -uroot -proot green_alert_test < DATABASE_SCHEMA_COMPLETE.sql
+
       - name: Validate JavaScript syntax
         run: |
           find . \
@@ -29,10 +67,17 @@ jobs:
             -path ./.git -prune -o \
             -name "*.js" -print0 | xargs -0 -n1 node --check
 
-      - name: Run tests if configured
+      - name: Start backend server
         run: |
-          if node -e "const pkg = require('./package.json'); process.exit(pkg.scripts && pkg.scripts.test ? 0 : 1);"; then
-            npm test
-          else
-            echo "No standard test script configured; skipping tests."
-          fi
+          npm start > server.log 2>&1 &
+          for i in {1..30}; do
+            if curl --fail http://localhost:3000/api/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat server.log
+          exit 1
+
+      - name: Run tests
+        run: npm test
