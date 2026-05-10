@@ -1,4 +1,5 @@
 import { ESTADO_INICIAL_REPORTE, ReporteModel } from '../models/reporte.model.js';
+import { CategoriaRiesgoModel } from '../models/categoria-riesgo.model.js';
 import { UsuarioModel }   from '../models/usuario.model.js';
 import { EvidenciaModel } from '../models/evidencia.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
@@ -53,12 +54,19 @@ export const createReporte = async (req, res, next) => {
       return errorResponse(res, 'La dirección es requerida.', 400);
     }
 
+    const tipoContaminacion = tipo_contaminacion.trim().toLowerCase();
+    const categoriaValida = await CategoriaRiesgoModel.esValido(tipoContaminacion);
+
+    if (!categoriaValida) {
+      return errorResponse(res, 'La categoría de contaminación no existe o está inactiva.', 400);
+    }
+
     const lat = parseCoord(latitud);
     const lng = parseCoord(longitud);
 
     const idReporte = await ReporteModel.create({
       id_usuario:       req.user.sub,
-      tipo_contaminacion: tipo_contaminacion.trim(),
+      tipo_contaminacion: tipoContaminacion,
       nivel_severidad:    nivel_severidad.trim(),
       titulo:             titulo.trim(),
       descripcion:        descripcion?.trim() || null,
