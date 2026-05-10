@@ -9,6 +9,7 @@ import {
 	register,
 	login,
 	refreshAccessToken,
+	exchangeOAuthCallbackCode,
 	logout,
 	forgotPassword,
 	resetPassword,
@@ -31,6 +32,7 @@ const authRouter = Router();
 authRouter.post('/register', authRateLimit, register);
 authRouter.post('/login', loginRateLimit, login);
 authRouter.post('/refresh', authRateLimit, refreshAccessToken);
+authRouter.post('/oauth/exchange', authRateLimit, exchangeOAuthCallbackCode);
 authRouter.post('/logout', authRateLimit, logout);
 authRouter.get('/verify-email', authRateLimit, verifyEmail);
 authRouter.post('/forgot-password', passwordResetRateLimit, forgotPassword);
