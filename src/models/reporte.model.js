@@ -1,6 +1,8 @@
 import pool from '../config/database.js';
 import { randomUUID } from 'crypto';
 
+export const ESTADO_INICIAL_REPORTE = 'pendiente';
+
 export const ReporteModel = {
   
     // Lista reportes con filtros opcionales y paginación
@@ -175,15 +177,15 @@ export const ReporteModel = {
     if (hasCoords) {
       const [result] = await pool.execute(
         `INSERT INTO reportes
-           (uuid, id_usuario, tipo_contaminacion, nivel_severidad, titulo, descripcion,
+           (uuid, id_usuario, tipo_contaminacion, estado, nivel_severidad, titulo, descripcion,
             latitud, longitud, direccion, municipio, departamento, punto_geo)
          VALUES
-           (?, ?, ?, ?, ?, ?,
+           (?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ST_GeomFromText(CONCAT('POINT(', ?, ' ', ?, ')'), 4326))`,
         [
           uuid,
-          id_usuario, tipo_contaminacion, nivel_severidad, titulo, descripcion,
+          id_usuario, tipo_contaminacion, ESTADO_INICIAL_REPORTE, nivel_severidad, titulo, descripcion,
           latitud, longitud, direccion, municipio, departamento,
           longitud, latitud,
         ]
@@ -192,11 +194,11 @@ export const ReporteModel = {
     } else {
       const [result] = await pool.execute(
         `INSERT INTO reportes
-           (uuid, id_usuario, tipo_contaminacion, nivel_severidad, titulo, descripcion,
+           (uuid, id_usuario, tipo_contaminacion, estado, nivel_severidad, titulo, descripcion,
             latitud, longitud, direccion, municipio, departamento)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [uuid,
-         id_usuario, tipo_contaminacion, nivel_severidad, titulo, descripcion,
+         id_usuario, tipo_contaminacion, ESTADO_INICIAL_REPORTE, nivel_severidad, titulo, descripcion,
          null, null, direccion, municipio, departamento]
       );
       return result.insertId;

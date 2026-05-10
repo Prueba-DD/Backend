@@ -119,7 +119,7 @@ export const CategoriaRiesgoModel = {
    */
   esValido: async (codigo) => {
     try {
-      const categoria = await this.findByCodigo(codigo);
+      const categoria = await CategoriaRiesgoModel.findByCodigo(codigo);
       return categoria !== null;
     } catch (error) {
       console.error('Error en CategoriaRiesgoModel.esValido:', error);
