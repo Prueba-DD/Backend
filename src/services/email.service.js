@@ -7,15 +7,19 @@ const getTransporter = () => {
   if (!cachedTransporter) {
     const { host, port, user, pass } = getEmailConfig();
 
-    cachedTransporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: {
-        user,
-        pass,
-      },
-    });
+    if (process.env.EMAIL_TRANSPORT === 'json') {
+      cachedTransporter = nodemailer.createTransport({ jsonTransport: true });
+    } else {
+      cachedTransporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: {
+          user,
+          pass,
+        },
+      });
+    }
   }
 
   return cachedTransporter;
