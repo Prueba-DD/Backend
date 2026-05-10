@@ -23,6 +23,14 @@ export const verifyToken = (req, res, next) => {
   }
 };
 
+export const verifyTokenWhenAllDevicesLogout = (req, res, next) => {
+  if (req.body?.allDevices === true) {
+    return verifyToken(req, res, next);
+  }
+
+  return next();
+};
+
 // Debe usarse despues de verifyToken para asegurar req.user.
 export const requireRoles = (...roles) => (req, res, next) => {
   if (!req.user) {

@@ -477,7 +477,11 @@ export const logout = async (req, res, next) => {
   try {
     const { refreshToken, allDevices = false } = req.body ?? {};
 
-    if (allDevices && req.user?.sub) {
+    if (allDevices && !req.user?.sub) {
+      return errorResponse(res, 'JWT requerido para cerrar sesion en todos los dispositivos.', 401);
+    }
+
+    if (allDevices) {
       await RefreshTokenModel.revokeAllForUser(req.user.sub);
       return successResponse(res, null, 'Sesion cerrada en todos los dispositivos.');
     }
