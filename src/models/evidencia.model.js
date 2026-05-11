@@ -10,7 +10,7 @@ export const EvidenciaModel = {
               url_archivo, nombre_original, mime_type, tamano_bytes,
               hash_sha256, verificado, orden, created_at
        FROM evidencias
-       WHERE id_reporte = ?
+       WHERE id_reporte = ? AND deleted_at IS NULL
        ORDER BY orden ASC, created_at ASC`,
       [id_reporte]
     );
