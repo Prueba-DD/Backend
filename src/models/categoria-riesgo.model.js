@@ -78,6 +78,120 @@ export const CategoriaRiesgoModel = {
     }
   },
 
+  findByCodigoIncludingInactive: async (codigo) => {
+    try {
+      const [rows] = await pool.execute(
+        `SELECT 
+          cr.id_categoria,
+          cr.codigo,
+          cr.nombre,
+          cr.descripcion,
+          cr.icono,
+          cr.color_hex,
+          cr.nivel_prioridad_default,
+          cr.activo,
+          cr.created_at,
+          cr.updated_at
+         FROM categorias_riesgo cr
+         WHERE cr.codigo = ? AND cr.deleted_at IS NULL
+         LIMIT 1`,
+        [codigo]
+      );
+
+      return rows[0] ?? null;
+    } catch (error) {
+      console.error('Error en CategoriaRiesgoModel.findByCodigoIncludingInactive:', error);
+      throw error;
+    }
+  },
+
+  create: async ({
+    codigo,
+    nombre,
+    descripcion = null,
+    icono = null,
+    color_hex = null,
+    nivel_prioridad_default = null,
+    activo = true,
+  }) => {
+    try {
+      const [result] = await pool.execute(
+        `INSERT INTO categorias_riesgo
+           (codigo, nombre, descripcion, icono, color_hex, nivel_prioridad_default, activo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          codigo,
+          nombre,
+          descripcion,
+          icono,
+          color_hex,
+          nivel_prioridad_default,
+          activo ? 1 : 0,
+        ]
+      );
+
+      return result.insertId;
+    } catch (error) {
+      console.error('Error en CategoriaRiesgoModel.create:', error);
+      throw error;
+    }
+  },
+
+  updateByCodigo: async (codigo, fields) => {
+    try {
+      const allowed = [
+        'nombre',
+        'descripcion',
+        'icono',
+        'color_hex',
+        'nivel_prioridad_default',
+      ];
+      const sets = [];
+      const params = [];
+
+      for (const key of allowed) {
+        if (Object.prototype.hasOwnProperty.call(fields, key)) {
+          sets.push(`${key} = ?`);
+          params.push(fields[key]);
+        }
+      }
+
+      if (sets.length === 0) {
+        return false;
+      }
+
+      params.push(codigo);
+
+      const [result] = await pool.execute(
+        `UPDATE categorias_riesgo
+         SET ${sets.join(', ')}, updated_at = NOW()
+         WHERE codigo = ? AND deleted_at IS NULL`,
+        params
+      );
+
+      return result.affectedRows > 0;
+    } catch (error) {
+      console.error('Error en CategoriaRiesgoModel.updateByCodigo:', error);
+      throw error;
+    }
+  },
+
+  updateActivoByCodigo: async (codigo, activo) => {
+    try {
+      const [result] = await pool.execute(
+        `UPDATE categorias_riesgo
+         SET activo = ?, updated_at = NOW()
+         WHERE codigo = ? AND deleted_at IS NULL`,
+        [activo ? 1 : 0, codigo]
+      );
+
+      return result.affectedRows > 0;
+    } catch (error) {
+      console.error('Error en CategoriaRiesgoModel.updateActivoByCodigo:', error);
+      throw error;
+    }
+  },
+
   /**
    * Obtiene estadísticas de reportes por categoría
    * @returns {Promise<Array>} Array con estadísticas por categoría
