@@ -17,3 +17,18 @@ test('CategoriaRiesgoModel.esValido retorna false cuando la categoria no existe 
 
   assert.equal(await CategoriaRiesgoModel.esValido('categoria_inexistente'), false);
 });
+
+test('CategoriaRiesgoModel.esValido retorna false cuando findByCodigo devuelve categoria inactiva', async (t) => {
+  t.mock.method(CategoriaRiesgoModel, 'findByCodigo', async (codigo) => ({
+    codigo,
+    activo: 0,
+  }));
+
+  assert.equal(await CategoriaRiesgoModel.esValido('inundacion'), false);
+});
+
+test('CategoriaRiesgoModel.findByCodigo consulta solo categorias activas', () => {
+  const source = CategoriaRiesgoModel.findByCodigo.toString();
+
+  assert.match(source, /WHERE cr\.codigo = \? AND cr\.activo = 1/);
+});

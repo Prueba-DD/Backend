@@ -117,10 +117,10 @@ export const CategoriaRiesgoModel = {
    * @param {string} codigo - Código de categoría
    * @returns {Promise<boolean>} true si existe y está activo
    */
-  esValido: async (codigo) => {
+  esValido: async function (codigo) {
     try {
-      const categoria = await CategoriaRiesgoModel.findByCodigo(codigo);
-      return categoria !== null;
+      const categoria = await this.findByCodigo(codigo);
+      return Boolean(categoria?.activo);
     } catch (error) {
       console.error('Error en CategoriaRiesgoModel.esValido:', error);
       throw error;
