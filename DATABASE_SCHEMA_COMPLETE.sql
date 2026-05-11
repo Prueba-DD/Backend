@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email_verificado BOOLEAN DEFAULT FALSE,
   avatar_url VARCHAR(255) NULL,
   telefono VARCHAR(20) NULL,
+  notification_preferences JSON NULL,
   ultimo_acceso DATETIME NULL,
   token_reset VARCHAR(64) NULL,
   token_reset_exp DATETIME NULL,

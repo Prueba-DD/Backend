@@ -1,18 +1,40 @@
 import pool from '../config/database.js';
 import { randomUUID } from 'crypto';
 
+export const DEFAULT_NOTIFICATION_PREFERENCES = {
+  email_alerts: true,
+  push_notifications: false,
+  report_updates: true,
+  weekly_summary: false,
+};
+
+export const parseNotificationPreferences = (preferences) => {
+  if (!preferences) {
+    return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  }
+
+  const parsed = typeof preferences === 'string'
+    ? JSON.parse(preferences)
+    : preferences;
+
+  return {
+    ...DEFAULT_NOTIFICATION_PREFERENCES,
+    ...parsed,
+  };
+};
+
 export const UsuarioModel = {
 
   // Columnas públicas del usuario (sin password_hash)
   _publicUserFields: `id_usuario, uuid, nombre, apellido, email,
-              rol, activo, email_verificado, avatar_url, telefono,
+              rol, activo, email_verificado, avatar_url, telefono, notification_preferences,
               created_at, updated_at`,
   
     // Busca un usuario por su email 
   findByEmail: async (email) => {
     const [rows] = await pool.execute(
       `SELECT id_usuario, uuid, nombre, apellido, email, password_hash, google_id, facebook_id,
-              rol, activo, email_verificado, avatar_url, telefono, ultimo_acceso,
+              rol, activo, email_verificado, avatar_url, telefono, notification_preferences, ultimo_acceso,
               created_at, updated_at
        FROM usuarios
        WHERE email = ? AND deleted_at IS NULL
@@ -28,7 +50,7 @@ export const UsuarioModel = {
   findById: async (id_usuario) => {
     const [rows] = await pool.execute(
       `SELECT id_usuario, uuid, nombre, apellido, email,
-              rol, activo, email_verificado, avatar_url, telefono, ultimo_acceso,
+              rol, activo, email_verificado, avatar_url, telefono, notification_preferences, ultimo_acceso,
               created_at, updated_at
        FROM usuarios
        WHERE id_usuario = ? AND deleted_at IS NULL
@@ -48,7 +70,15 @@ export const UsuarioModel = {
       [id_usuario]
     );
 
-    return rows[0] ?? null;
+    const user = rows[0] ?? null;
+    if (!user) {
+      return null;
+    }
+
+    return {
+      ...user,
+      notification_preferences: parseNotificationPreferences(user.notification_preferences),
+    };
   },
 
   // Lista usuarios con filtros opcionales
@@ -173,6 +203,21 @@ export const UsuarioModel = {
        SET password_hash = ?, updated_at = NOW()
        WHERE id_usuario = ? AND deleted_at IS NULL`,
       [newPasswordHash, id_usuario]
+    );
+
+    if (result.affectedRows === 0) {
+      return null;
+    }
+
+    return UsuarioModel.findByIdWithDetails(id_usuario);
+  },
+
+  updateNotificationPreferences: async (id_usuario, preferences) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET notification_preferences = ?, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [JSON.stringify(preferences), id_usuario]
     );
 
     if (result.affectedRows === 0) {
