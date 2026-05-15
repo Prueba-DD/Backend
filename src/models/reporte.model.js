@@ -249,6 +249,22 @@ export const ReporteModel = {
     return result.affectedRows > 0;
   },
 
+  updateIaAnalysis: async (id_reporte, { etiquetas, confianza, procesado = true }) => {
+    const [result] = await pool.execute(
+      `UPDATE reportes
+       SET ia_etiquetas = ?, ia_confianza = ?, ia_procesado = ?, updated_at = NOW()
+       WHERE id_reporte = ? AND deleted_at IS NULL`,
+      [
+        JSON.stringify(etiquetas ?? []),
+        confianza,
+        procesado ? 1 : 0,
+        id_reporte,
+      ]
+    );
+
+    return result.affectedRows > 0;
+  },
+
   
     // Incrementa el contador de vistas en 1
    

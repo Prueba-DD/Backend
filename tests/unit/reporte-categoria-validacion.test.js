@@ -60,6 +60,7 @@ test('createReporte crea reporte cuando la categoria existe y esta activa', asyn
     tipo_contaminacion: 'inundacion',
     estado: 'pendiente',
   }));
+  t.mock.method(ReporteModel, 'updateIaAnalysis', async () => true);
 
   const req = createValidRequest();
   const res = createMockResponse();
@@ -73,6 +74,11 @@ test('createReporte crea reporte cuando la categoria existe y esta activa', asyn
   assert.equal(ReporteModel.create.mock.calls[0].arguments[0].tipo_contaminacion, 'inundacion');
   assert.equal(ReporteModel.create.mock.calls[0].arguments[0].latitud, 10.45);
   assert.equal(ReporteModel.create.mock.calls[0].arguments[0].longitud, -73.25);
+  assert.equal(ReporteModel.updateIaAnalysis.mock.callCount(), 1);
+  assert.deepEqual(
+    ReporteModel.updateIaAnalysis.mock.calls[0].arguments[1].procesado,
+    true
+  );
   assert.equal(next.mock.callCount(), 0);
 });
 

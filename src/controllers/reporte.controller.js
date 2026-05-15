@@ -7,6 +7,7 @@ import {
 import { CategoriaRiesgoModel } from '../models/categoria-riesgo.model.js';
 import { UsuarioModel }   from '../models/usuario.model.js';
 import { EvidenciaModel } from '../models/evidencia.model.js';
+import { analyzeReporte } from '../services/ia.service.js';
 import { errorResponse, successResponse } from '../utils/response.js';
 
 const parseCoordinate = (value, { field, min, max }) => {
@@ -163,7 +164,23 @@ export const createReporte = async (req, res, next) => {
       longitud:           parsedLongitud.value,
     });
 
-    const reporte = await ReporteModel.findById(idReporte);
+    let reporte = await ReporteModel.findById(idReporte);
+
+    const iaAnalysis = analyzeReporte({
+      ...reporte,
+      tipo_contaminacion: tipoContaminacion,
+      nivel_severidad: nivelSeveridad,
+      titulo: titulo.trim(),
+      descripcion: descripcion?.trim() || null,
+      direccion: direccion.trim(),
+      municipio: municipio?.trim() || null,
+      departamento: departamento?.trim() || null,
+      latitud: parsedLatitud.value,
+      longitud: parsedLongitud.value,
+    });
+
+    await ReporteModel.updateIaAnalysis(idReporte, iaAnalysis);
+    reporte = await ReporteModel.findById(idReporte);
 
     // Guardar evidencia si se adjuntó archivo
     if (req.file) {
