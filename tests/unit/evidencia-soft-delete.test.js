@@ -23,7 +23,8 @@ test('EvidenciaModel.findByReporte filtra evidencias eliminadas logicamente', ()
 test('EvidenciaModel.create no marca evidencias como eliminadas', () => {
   const model = readBackendFile('src/models/evidencia.model.js');
   const createStart = model.indexOf('create: async');
-  const createSection = model.slice(createStart);
+  const removeStart = model.indexOf('remove: async', createStart);
+  const createSection = model.slice(createStart, removeStart);
 
   assert.doesNotMatch(createSection, /deleted_at/);
 });

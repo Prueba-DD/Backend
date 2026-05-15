@@ -14,6 +14,9 @@ import {
   updateReporte,
   deleteReporte,
   exportReportes,
+  listEvidenciasReporte,
+  addEvidenciaReporte,
+  deleteEvidenciaReporte,
 } from '../src/controllers/reporte.controller.js';
  
 
@@ -26,6 +29,15 @@ reporteRouter.get('/stats/heatmap', getHeatmapPoints);
 reporteRouter.get('/export', verifyToken, requireRoles('admin', 'moderador'), exportReportes);
 reporteRouter.get('/mis-reportes', verifyToken, getMisReportes);
 reporteRouter.get('/',      getReportes);
+reporteRouter.get('/:id/evidencias', validatePositiveIdParam('id'), verifyToken, listEvidenciasReporte);
+reporteRouter.post('/:id/evidencias', validatePositiveIdParam('id'), verifyToken, upload.single('file'), addEvidenciaReporte);
+reporteRouter.delete(
+  '/:id/evidencias/:evidenciaId',
+  validatePositiveIdParam('id'),
+  validatePositiveIdParam('evidenciaId'),
+  verifyToken,
+  deleteEvidenciaReporte
+);
 reporteRouter.get('/:id',   validatePositiveIdParam('id'), getReporteById);
 reporteRouter.post('/',     verifyToken, upload.single('file'), createReporte);
 reporteRouter.patch('/:id', validatePositiveIdParam('id'), verifyToken, updateReporte);

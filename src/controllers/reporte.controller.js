@@ -39,6 +39,35 @@ const buildAllowedValuesMessage = (field, allowedValues) => (
   `${field} debe ser uno de: ${allowedValues.join(', ')}.`
 );
 
+const canManageReporteEvidence = (reporte, user) => {
+  if (!reporte || !user) {
+    return false;
+  }
+
+  return (
+    Number(reporte.id_usuario) === Number(user.sub) ||
+    user.rol === 'moderador' ||
+    user.rol === 'admin'
+  );
+};
+
+const getReporteForEvidenceManagement = async (req, res) => {
+  const id = Number(req.params.id);
+  const reporte = await ReporteModel.findById(id);
+
+  if (!reporte) {
+    errorResponse(res, 'Reporte no encontrado.', 404);
+    return null;
+  }
+
+  if (!canManageReporteEvidence(reporte, req.user)) {
+    errorResponse(res, 'No tienes permiso para gestionar evidencias de este reporte.', 403);
+    return null;
+  }
+
+  return reporte;
+};
+
 const toCsvValue = (value) => {
   if (value === null || value === undefined) return '';
   const raw = String(value);
@@ -442,6 +471,77 @@ export const getReporteById = async (req, res, next) => {
       : null;
 
     return successResponse(res, { reporte, evidencias, autor });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const listEvidenciasReporte = async (req, res, next) => {
+  try {
+    const reporte = await getReporteForEvidenceManagement(req, res);
+    if (!reporte) return null;
+
+    const evidencias = await EvidenciaModel.findByReporte(reporte.id_reporte);
+
+    return successResponse(
+      res,
+      { evidencias, total: evidencias.length },
+      'Evidencias obtenidas correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const addEvidenciaReporte = async (req, res, next) => {
+  try {
+    const reporte = await getReporteForEvidenceManagement(req, res);
+    if (!reporte) return null;
+
+    if (!req.file) {
+      return errorResponse(res, 'Archivo de evidencia requerido.', 400);
+    }
+
+    const tipo = req.file.mimetype.startsWith('video/') ? 'video' : 'imagen';
+    const idEvidencia = await EvidenciaModel.create({
+      id_reporte: reporte.id_reporte,
+      id_usuario: req.user.sub,
+      tipo_archivo: tipo,
+      url_archivo: `/uploads/${req.file.filename}`,
+      nombre_original: req.file.originalname,
+      mime_type: req.file.mimetype,
+      tamano_bytes: req.file.size,
+      orden: 0,
+    });
+
+    const evidencia = await EvidenciaModel.findById(idEvidencia);
+
+    return successResponse(
+      res,
+      { evidencia },
+      'Evidencia agregada correctamente.',
+      201
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const deleteEvidenciaReporte = async (req, res, next) => {
+  try {
+    const reporte = await getReporteForEvidenceManagement(req, res);
+    if (!reporte) return null;
+
+    const evidenciaId = Number(req.params.evidenciaId);
+    const evidencia = await EvidenciaModel.findById(evidenciaId);
+
+    if (!evidencia || Number(evidencia.id_reporte) !== Number(reporte.id_reporte)) {
+      return errorResponse(res, 'Evidencia no encontrada.', 404);
+    }
+
+    await EvidenciaModel.remove(evidenciaId);
+
+    return successResponse(res, null, 'Evidencia eliminada correctamente.');
   } catch (error) {
     return next(error);
   }
