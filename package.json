@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node tests/run-all.js",
+    "test": "npm run test:unit",
     "test:unit": "node --test tests/unit/*.test.js",
+    "test:legacy": "node tests/run-all.js",
     "test:email": "node tests/email/smtp-send.test.js"
   },
   "dependencies": {

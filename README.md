@@ -657,7 +657,9 @@ npm start
 ```bash
 npm run dev          # Inicia servidor con nodemon (desarrollo)
 npm start            # Inicia servidor con node (producción)
-npm run test         # Ejecuta pruebas (si existen)
+npm test             # Ejecuta la suite unitaria del backend
+npm run test:unit    # Ejecuta pruebas unitarias con node:test
+npm run test:legacy  # Ejecuta el runner historico tests/run-all.js
 npm run lint         # Verifica código (si está configurado)
 ```
 
@@ -956,10 +958,21 @@ mysqldump -u usuario -p base_datos > backup.sql
 
 ##  Testing
 
-Actualmente no hay suite de tests. Para futuro se sugiere usar:
-- **Jest** para unit tests
-- **Supertest** para tests de API
-- **Newman** para tests de Postman
+El backend usa `node:test` para la suite unitaria estable.
+
+```bash
+npm test
+```
+
+Comandos disponibles:
+
+```bash
+npm run test:unit    # Suite unitaria estable
+npm run test:legacy  # Runner historico para pruebas por carpeta/patron
+npm run test:email   # Prueba SMTP; requiere configuracion de email
+```
+
+Las pruebas de integracion y algunos scripts legacy pueden requerir servidor, base de datos o servicios externos configurados.
 
 ---
 
