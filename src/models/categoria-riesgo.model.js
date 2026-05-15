@@ -226,6 +226,34 @@ export const CategoriaRiesgoModel = {
     }
   },
 
+  getEstadisticasPorSeveridad: async () => {
+    try {
+      const [rows] = await pool.execute(
+        `SELECT
+          cr.codigo,
+          cr.nombre,
+          cr.icono,
+          cr.color_hex,
+          SUM(CASE WHEN r.nivel_severidad = 'bajo' THEN 1 ELSE 0 END) AS bajo,
+          SUM(CASE WHEN r.nivel_severidad = 'medio' THEN 1 ELSE 0 END) AS medio,
+          SUM(CASE WHEN r.nivel_severidad = 'alto' THEN 1 ELSE 0 END) AS alto,
+          SUM(CASE WHEN r.nivel_severidad = 'critico' THEN 1 ELSE 0 END) AS critico
+         FROM categorias_riesgo cr
+         LEFT JOIN reportes r ON r.tipo_contaminacion = cr.codigo
+           AND r.deleted_at IS NULL
+         WHERE cr.activo = 1
+         GROUP BY cr.id_categoria, cr.codigo, cr.nombre, cr.icono, cr.color_hex
+         ORDER BY cr.nombre ASC`,
+        []
+      );
+
+      return rows;
+    } catch (error) {
+      console.error('Error en CategoriaRiesgoModel.getEstadisticasPorSeveridad:', error);
+      throw error;
+    }
+  },
+
   /**
    * Valida si un código de categoría existe y está activo
    * @param {string} codigo - Código de categoría

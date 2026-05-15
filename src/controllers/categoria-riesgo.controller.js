@@ -93,7 +93,7 @@ const buildCategoryPayload = ({ requireAll = false, body = {} } = {}) => {
  */
 export const obtenerTodasLasCategorias = async (req, res, next) => {
   try {
-    const categorias = await CategoriaRiesgoModel.findAll(true);
+    const estadisticas = await CategoriaRiesgoModel.getEstadisticasPorSeveridad();
     
     if (!categorias || categorias.length === 0) {
       return successResponse(res, { categorias: [] }, 'No hay categorías disponibles.');
@@ -363,27 +363,21 @@ export const obtenerEstadisticasCategorias = async (req, res, next) => {
 export const obtenerEstadisticasSeveridad = async (req, res, next) => {
   try {
     // Obtener todas las categorías
-    const categorias = await CategoriaRiesgoModel.findAll(true);
+    const estadisticas = await CategoriaRiesgoModel.getEstadisticasPorSeveridad();
 
     const estadisticasPorSeveridad = {};
 
     // Para cada categoría, contar por severidad
-    for (const categoria of categorias) {
-      const reportes = await ReporteModel.findAll({
-        tipo_contaminacion: categoria.codigo,
-        limit: 1000,
-        offset: 0
-      });
-
+    for (const categoria of estadisticas) {
       estadisticasPorSeveridad[categoria.codigo] = {
         nombre_categoria: categoria.nombre,
         icono: categoria.icono,
         color: categoria.color_hex,
         por_severidad: {
-          bajo: reportes.filter(r => r.nivel_severidad === 'bajo').length,
-          medio: reportes.filter(r => r.nivel_severidad === 'medio').length,
-          alto: reportes.filter(r => r.nivel_severidad === 'alto').length,
-          critico: reportes.filter(r => r.nivel_severidad === 'critico').length
+          bajo: Number(categoria.bajo) || 0,
+          medio: Number(categoria.medio) || 0,
+          alto: Number(categoria.alto) || 0,
+          critico: Number(categoria.critico) || 0
         }
       };
     }
