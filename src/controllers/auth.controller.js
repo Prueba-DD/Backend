@@ -14,6 +14,10 @@ import {
   generateFacebookAuthUrl,
   getFacebookUserInfo,
 } from '../services/facebook-oauth.service.js';
+import {
+  consumeOAuthCallbackCode,
+  createOAuthCallbackCode,
+} from '../services/oauth-callback-code.service.js';
 
 /**
  * ESTRATEGIA DE AUTENTICACIÓN CON FACEBOOK
@@ -160,6 +164,26 @@ const toPublicUser = (user) => ({
 });
 
 const isDevelopment = () => process.env.NODE_ENV === 'development';
+
+const buildFrontendAuthCallbackUrl = (authPayload) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const callbackCode = createOAuthCallbackCode(authPayload);
+  const url = new URL('/auth/callback', frontendUrl);
+
+  url.hash = `oauth_code=${encodeURIComponent(callbackCode)}`;
+
+  return url.toString();
+};
+
+const redirectToFrontendAuthCallback = (res, authPayload) => {
+  res.set({
+    'Cache-Control': 'no-store',
+    Pragma: 'no-cache',
+    'Referrer-Policy': 'no-referrer',
+  });
+
+  return res.redirect(303, buildFrontendAuthCallbackUrl(authPayload));
+};
 
 const errorResponseWithDevelopmentDetails = (
   res,
@@ -423,6 +447,26 @@ export const refreshAccessToken = async (req, res, next) => {
         user: toPublicUser(current),
       },
       'Token renovado correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const exchangeOAuthCallbackCode = async (req, res, next) => {
+  try {
+    const { code } = req.body ?? {};
+    const authPayload = consumeOAuthCallbackCode(code);
+
+    if (!authPayload) {
+      return errorResponse(res, 'Codigo OAuth invalido o expirado.', 400);
+    }
+
+    return successResponse(
+      res,
+      authPayload,
+      'Autenticacion OAuth completada.',
+      200
     );
   } catch (error) {
     return next(error);
@@ -1089,11 +1133,7 @@ export const googleCallback = async (req, res, next) => {
     // Generar JWT
     const authPayload = await buildAuthPayload(user, req);
 
-    // Redirigir al frontend con el token
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${frontendUrl}/auth/callback?token=${authPayload.accessToken}&refreshToken=${authPayload.refreshToken}&user=${encodeURIComponent(JSON.stringify(authPayload.user))}`;
-
-    return res.redirect(redirectUrl);
+    return redirectToFrontendAuthCallback(res, authPayload);
   } catch (error) {
     return next(error);
   }
@@ -1256,10 +1296,10 @@ export const facebookCallback = async (req, res, next) => {
       );
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${frontendUrl}/auth/callback?token=${authPayload.accessToken}&refreshToken=${authPayload.refreshToken}&user=${encodeURIComponent(JSON.stringify(publicUser))}`;
-
-    return res.redirect(redirectUrl);
+    return redirectToFrontendAuthCallback(res, {
+      ...authPayload,
+      user: publicUser,
+    });
   } catch (error) {
     return next(error);
   }
