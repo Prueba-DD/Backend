@@ -769,9 +769,9 @@ const OTP_MINUTES = 10;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
 const MAX_OTP_ATTEMPTS = 5;
 
-// Genera un código OTP de 6 dígitos aleatorio
-const generateOtpCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+// Genera un codigo OTP de 6 digitos con aleatoriedad criptografica.
+export const generateOtpCode = () => {
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 // Hashea el código OTP con SHA-256
