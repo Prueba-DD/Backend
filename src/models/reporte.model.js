@@ -17,6 +17,38 @@ export const NIVELES_SEVERIDAD_PERMITIDOS = [
   'critico',
 ];
 
+const buildReportesFilter = ({
+  estado,
+  tipo_contaminacion,
+  nivel_severidad,
+  municipio,
+} = {}) => {
+  const conditions = ['r.deleted_at IS NULL'];
+  const params = [];
+
+  if (estado) {
+    conditions.push('r.estado = ?');
+    params.push(estado);
+  }
+  if (tipo_contaminacion) {
+    conditions.push('r.tipo_contaminacion = ?');
+    params.push(tipo_contaminacion);
+  }
+  if (nivel_severidad) {
+    conditions.push('r.nivel_severidad = ?');
+    params.push(nivel_severidad);
+  }
+  if (municipio) {
+    conditions.push('r.municipio = ?');
+    params.push(municipio);
+  }
+
+  return {
+    where: conditions.join(' AND '),
+    params,
+  };
+};
+
 export const ReporteModel = {
   
     // Lista reportes con filtros opcionales y paginación
@@ -29,27 +61,12 @@ export const ReporteModel = {
     limit = 20,
     offset = 0,
   } = {}) => {
-    const conditions = ['r.deleted_at IS NULL'];
-    const params = [];
-
-    if (estado) {
-      conditions.push('r.estado = ?');
-      params.push(estado);
-    }
-    if (tipo_contaminacion) {
-      conditions.push('r.tipo_contaminacion = ?');
-      params.push(tipo_contaminacion);
-    }
-    if (nivel_severidad) {
-      conditions.push('r.nivel_severidad = ?');
-      params.push(nivel_severidad);
-    }
-    if (municipio) {
-      conditions.push('r.municipio = ?');
-      params.push(municipio);
-    }
-
-    const where = conditions.join(' AND ');
+    const { where, params } = buildReportesFilter({
+      estado,
+      tipo_contaminacion,
+      nivel_severidad,
+      municipio,
+    });
     const safeLimit  = Math.max(1, Math.min(100, parseInt(limit,  10) || 20));
     const safeOffset = Math.max(0,               parseInt(offset, 10) || 0);
 
@@ -69,6 +86,29 @@ export const ReporteModel = {
       params
     );
     return rows;
+  },
+
+  countAll: async ({
+    estado,
+    tipo_contaminacion,
+    nivel_severidad,
+    municipio,
+  } = {}) => {
+    const { where, params } = buildReportesFilter({
+      estado,
+      tipo_contaminacion,
+      nivel_severidad,
+      municipio,
+    });
+
+    const [[row]] = await pool.execute(
+      `SELECT COUNT(*) AS total
+       FROM reportes r
+       WHERE ${where}`,
+      params
+    );
+
+    return Number(row?.total) || 0;
   },
 
   // Exporta reportes con filtros opcionales (para CSV/JSON)

@@ -206,12 +206,28 @@ export const createReporte = async (req, res, next) => {
 export const getReportes = async (req, res, next) => {
   try {
     const { estado, tipo_contaminacion, nivel_severidad, municipio, limit = 20, offset = 0 } = req.query;
-    const reportes = await ReporteModel.findAll({
+    const filters = {
       estado, tipo_contaminacion, nivel_severidad, municipio,
       limit: Number(limit),
       offset: Number(offset),
+    };
+    const countFilters = {
+      estado,
+      tipo_contaminacion,
+      nivel_severidad,
+      municipio,
+    };
+    const [reportes, total] = await Promise.all([
+      ReporteModel.findAll(filters),
+      ReporteModel.countAll(countFilters),
+    ]);
+
+    return successResponse(res, {
+      reportes,
+      total,
+      limit: Math.max(1, Math.min(100, parseInt(limit, 10) || 20)),
+      offset: Math.max(0, parseInt(offset, 10) || 0),
     });
-    return successResponse(res, { reportes, total: reportes.length });
   } catch (error) {
     return next(error);
   }
