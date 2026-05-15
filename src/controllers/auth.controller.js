@@ -1,6 +1,10 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { UsuarioModel } from '../models/usuario.model.js';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  parseNotificationPreferences,
+  UsuarioModel,
+} from '../models/usuario.model.js';
 import { RefreshTokenModel } from '../models/refresh-token.model.js';
 import { errorResponse, successResponse } from '../utils/response.js';
 import {
@@ -160,6 +164,7 @@ const toPublicUser = (user) => ({
   email_verificado: user.email_verificado,
   avatar_url: user.avatar_url,
   telefono: user.telefono,
+  notification_preferences: parseNotificationPreferences(user.notification_preferences),
   created_at: user.created_at,
 });
 
@@ -941,19 +946,56 @@ export const updateNotifications = async (req, res, next) => {
     if (!id_usuario) return errorResponse(res, 'No autorizado.', 401);
 
     const { preferences } = req.body ?? {};
-    if (!preferences || typeof preferences !== 'object')
+    if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) {
       return errorResponse(res, 'Las preferencias deben ser un objeto.', 400);
+    }
 
-    // Validar estructura de preferencias
     const validKeys = ['email_alerts', 'push_notifications', 'report_updates', 'weekly_summary'];
     const validatedPreferences = {};
+    const invalidKeys = Object.keys(preferences).filter((key) => !validKeys.includes(key));
+
+    if (invalidKeys.length > 0) {
+      return errorResponse(
+        res,
+        `Preferencias no permitidas: ${invalidKeys.join(', ')}.`,
+        400
+      );
+    }
+
     for (const key of validKeys) {
       if (key in preferences) validatedPreferences[key] = Boolean(preferences[key]);
     }
 
+    if (Object.keys(validatedPreferences).length === 0) {
+      return errorResponse(res, 'Debe enviar al menos una preferencia valida.', 400);
+    }
+
+    const user = await UsuarioModel.findByIdWithDetails(id_usuario);
+    if (!user) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
+    const notificationPreferences = {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      ...(user.notification_preferences || {}),
+      ...validatedPreferences,
+    };
+
+    const updatedUser = await UsuarioModel.updateNotificationPreferences(
+      id_usuario,
+      notificationPreferences
+    );
+
+    if (!updatedUser) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
     return successResponse(
       res,
-      { preferences: validatedPreferences },
+      {
+        preferences: updatedUser.notification_preferences,
+        user: toPublicUser(updatedUser),
+      },
       'Preferencias de notificaciones actualizadas.',
       200
     );
