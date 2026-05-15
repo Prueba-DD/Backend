@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken } from '../middlewares/auth.middleware.js';
+import { verifyToken, verifyTokenWhenAllDevicesLogout } from '../middlewares/auth.middleware.js';
 import {
 	authRateLimit,
 	loginRateLimit,
@@ -33,7 +33,7 @@ authRouter.post('/register', authRateLimit, register);
 authRouter.post('/login', loginRateLimit, login);
 authRouter.post('/refresh', authRateLimit, refreshAccessToken);
 authRouter.post('/oauth/exchange', authRateLimit, exchangeOAuthCallbackCode);
-authRouter.post('/logout', authRateLimit, logout);
+authRouter.post('/logout', authRateLimit, verifyTokenWhenAllDevicesLogout, logout);
 authRouter.get('/verify-email', authRateLimit, verifyEmail);
 authRouter.post('/forgot-password', passwordResetRateLimit, forgotPassword);
 authRouter.post('/reset-password', passwordResetRateLimit, resetPassword);
