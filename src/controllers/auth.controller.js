@@ -616,7 +616,9 @@ export const changePassword = async (req, res, next) => {
       return errorResponse(res, 'Usuario no encontrado.', 404);
     }
 
-    return successResponse(res, null, 'Contrasena actualizada', 200);
+    await RefreshTokenModel.revokeAllForUser(id_usuario);
+
+    return successResponse(res, null, 'Contrasena actualizada. Se cerraron las sesiones activas.', 200);
   } catch (error) {
     return next(error);
   }
@@ -719,8 +721,9 @@ export const resetPassword = async (req, res, next) => {
     }
 
     await UsuarioModel.clearResetToken(user.id_usuario);
+    await RefreshTokenModel.revokeAllForUser(user.id_usuario);
 
-    return successResponse(res, null, 'Contrasena actualizada correctamente.', 200);
+    return successResponse(res, null, 'Contrasena actualizada correctamente. Se cerraron las sesiones activas.', 200);
   } catch (error) {
     return next(error);
   }
