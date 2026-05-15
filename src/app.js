@@ -1,4 +1,6 @@
 import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { notFoundHandler, errorHandler } from '../middlewares/errorHandler.js';
@@ -7,6 +9,7 @@ import authRouter from '../routes/auth.routes.js';
 import reporteRouter from '../routes/reporte.routes.js';
 import categoriaRouter from '../routes/categoria-riesgo.routes.js';
 import adminRouter from '../routes/admin.routes.js';
+import { getCorsOptions, getHelmetOptions } from './config/security.config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,6 +22,9 @@ const normalizeApiPrefix = (prefix = '/api') => {
 
 const apiPrefix = normalizeApiPrefix(process.env.API_PREFIX);
 
+app.use(helmet(getHelmetOptions()));
+app.use(cors(getCorsOptions()));
+app.options('*', cors(getCorsOptions()));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
