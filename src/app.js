@@ -1,8 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { notFoundHandler, errorHandler } from '../middlewares/errorHandler.js';
 import healthRouter from '../routes/health.routes.js';
 import authRouter from '../routes/auth.routes.js';
@@ -10,8 +8,7 @@ import reporteRouter from '../routes/reporte.routes.js';
 import categoriaRouter from '../routes/categoria-riesgo.routes.js';
 import adminRouter from '../routes/admin.routes.js';
 import { getCorsOptions, getHelmetOptions } from './config/security.config.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { getUploadDir } from './config/upload.config.js';
 
 const app = express();
 const normalizeApiPrefix = (prefix = '/api') => {
@@ -29,7 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Archivos subidos por los usuarios
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(getUploadDir()));
 
 // rutas de la API
 app.use(`${apiPrefix}/health`, healthRouter);
