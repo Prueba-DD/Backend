@@ -92,11 +92,15 @@ export const createReporte = async (req, res, next) => {
     const {
       tipo_contaminacion,
       nivel_severidad,
+      subcategoria,
       titulo,
       descripcion,
       direccion,
       municipio,
       departamento,
+      ia_etiquetas,
+      ia_confianza,
+      ia_procesado,
       latitud,
       longitud,
     } = req.body ?? {};
@@ -154,6 +158,7 @@ export const createReporte = async (req, res, next) => {
     const idReporte = await ReporteModel.create({
       id_usuario:       req.user.sub,
       tipo_contaminacion: tipoContaminacion,
+      subcategoria:        subcategoria?.trim() || null,
       nivel_severidad:    nivelSeveridad,
       titulo:             titulo.trim(),
       descripcion:        descripcion?.trim() || null,
@@ -166,34 +171,58 @@ export const createReporte = async (req, res, next) => {
 
     let reporte = await ReporteModel.findById(idReporte);
 
-    const iaAnalysis = analyzeReporte({
-      ...reporte,
-      tipo_contaminacion: tipoContaminacion,
-      nivel_severidad: nivelSeveridad,
-      titulo: titulo.trim(),
-      descripcion: descripcion?.trim() || null,
-      direccion: direccion.trim(),
-      municipio: municipio?.trim() || null,
-      departamento: departamento?.trim() || null,
-      latitud: parsedLatitud.value,
-      longitud: parsedLongitud.value,
-    });
+    let iaAnalysis;
+    if (String(ia_procesado) === '1') {
+      let etiquetas = [];
+      try {
+        etiquetas = typeof ia_etiquetas === 'string'
+          ? JSON.parse(ia_etiquetas)
+          : (ia_etiquetas ?? []);
+      } catch {
+        etiquetas = [];
+      }
+      iaAnalysis = {
+        etiquetas,
+        confianza: Number(ia_confianza) || 0,
+        procesado: true,
+      };
+    } else {
+      iaAnalysis = analyzeReporte({
+        ...reporte,
+        tipo_contaminacion: tipoContaminacion,
+        nivel_severidad: nivelSeveridad,
+        titulo: titulo.trim(),
+        descripcion: descripcion?.trim() || null,
+        direccion: direccion.trim(),
+        municipio: municipio?.trim() || null,
+        departamento: departamento?.trim() || null,
+        latitud: parsedLatitud.value,
+        longitud: parsedLongitud.value,
+      });
+    }
 
     await ReporteModel.updateIaAnalysis(idReporte, iaAnalysis);
     reporte = await ReporteModel.findById(idReporte);
 
     // Guardar evidencia si se adjuntó archivo
-    if (req.file) {
-      const tipo = req.file.mimetype.startsWith('video/') ? 'video' : 'imagen';
+    const uploadedFiles = [
+      ...(req.file ? [req.file] : []),
+      ...(Array.isArray(req.files) ? req.files : []),
+      ...(Array.isArray(req.files?.file) ? req.files.file : []),
+      ...(Array.isArray(req.files?.files) ? req.files.files : []),
+    ];
+
+    for (const [index, file] of uploadedFiles.entries()) {
+      const tipo = file.mimetype.startsWith('video/') ? 'video' : 'imagen';
       await EvidenciaModel.create({
         id_reporte:      idReporte,
         id_usuario:      req.user.sub,
         tipo_archivo:    tipo,
-        url_archivo:     `/uploads/${req.file.filename}`,
-        nombre_original: req.file.originalname,
-        mime_type:       req.file.mimetype,
-        tamano_bytes:    req.file.size,
-        orden:           0,
+        url_archivo:     `/uploads/${file.filename}`,
+        nombre_original: file.originalname,
+        mime_type:       file.mimetype,
+        tamano_bytes:    file.size,
+        orden:           index,
       });
     }
 
@@ -372,6 +401,126 @@ export const getHeatmapPoints = async (req, res, next) => {
   }
 };
 
+export const getStatsIA = async (req, res, next) => {
+  try {
+    const data = await ReporteModel.getStatsIA({ dias: req.query?.dias });
+    return successResponse(
+      res,
+      { data },
+      'Estadisticas IA obtenidas correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getZonasRiesgo = async (req, res, next) => {
+  try {
+    const zonas = await ReporteModel.getZonasRiesgo({
+      dias: req.query?.dias,
+      min_score: req.query?.min_score,
+    });
+
+    return successResponse(
+      res,
+      { zonas, total: zonas.length },
+      'Zonas de riesgo obtenidas correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getAlertasPredictivas = async (req, res, next) => {
+  try {
+    const alertas = await ReporteModel.getAlertasPredictivas({
+      nivel_min: req.query?.nivel_min,
+      tipo: req.query?.tipo,
+      limite: req.query?.limite,
+      dias: req.query?.dias,
+      lat: req.query?.lat,
+      lng: req.query?.lng,
+      radio_km: req.query?.radio_km,
+    });
+
+    return successResponse(
+      res,
+      { alertas, total: alertas.length },
+      'Alertas predictivas obtenidas correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getTrendingReportes = async (req, res, next) => {
+  try {
+    const reportes = await ReporteModel.findTrending({ limit: req.query?.limit });
+    return successResponse(
+      res,
+      { reportes, total: reportes.length },
+      'Reportes en tendencia obtenidos correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const toggleLikeReporte = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const idUsuario = req.user?.sub;
+
+    const reporte = await ReporteModel.findById(id);
+    if (!reporte) return errorResponse(res, 'Reporte no encontrado.', 404);
+
+    if (Number(reporte.id_usuario) === Number(idUsuario)) {
+      return errorResponse(res, 'No puedes reaccionar a tu propio reporte.', 400);
+    }
+
+    const result = await ReporteModel.toggleLike(id, idUsuario);
+
+    return successResponse(
+      res,
+      result,
+      result.liked ? 'Like registrado.' : 'Like retirado.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const analizarImagen = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return errorResponse(res, 'Imagen requerida.', 400);
+    }
+
+    const analysis = analyzeReporte({
+      titulo: req.file.originalname || '',
+      descripcion: req.file.originalname || '',
+    });
+    const [top] = analysis.etiquetas ?? [];
+
+    return successResponse(
+      res,
+      {
+        categoria: top?.label || 'otro',
+        nombre: top?.nombre || 'Otro',
+        confianza: top?.score || analysis.confianza || 0,
+        subcategoria: null,
+        confianza_subcategoria: 0,
+        severidad: null,
+        confianza_severidad: 0,
+        etiquetas: analysis.etiquetas ?? [],
+      },
+      'Imagen analizada correctamente.'
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const updateReporte = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -490,7 +639,9 @@ export const getReporteById = async (req, res, next) => {
     const id = Number(req.params.id);
     const reporte = await ReporteModel.findById(id);
     if (!reporte) return errorResponse(res, 'Reporte no encontrado.', 404);
-    await ReporteModel.incrementarVistas(id);
+    if (req.query?.skip_view !== 'true') {
+      await ReporteModel.incrementarVistas(id);
+    }
 
     // Fetch related data in parallel
     const [evidencias, usuario] = await Promise.all([

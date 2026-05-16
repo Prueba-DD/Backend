@@ -74,7 +74,7 @@ export const ReporteModel = {
 
     const [rows] = await pool.execute(
       `SELECT r.id_reporte, r.uuid, r.id_usuario,
-              r.tipo_contaminacion, r.estado, r.nivel_severidad,
+              r.tipo_contaminacion, r.subcategoria, r.estado, r.nivel_severidad,
               r.titulo, r.descripcion,
               r.latitud, r.longitud, r.direccion, r.municipio, r.departamento,
               r.votos_relevancia, r.vistas,
@@ -155,6 +155,7 @@ export const ReporteModel = {
     const [rows] = await pool.execute(
       `SELECT r.titulo,
               r.tipo_contaminacion,
+              r.subcategoria,
               r.nivel_severidad,
               r.estado,
               r.municipio,
@@ -177,7 +178,7 @@ export const ReporteModel = {
   findById: async (id_reporte) => {
     const [rows] = await pool.execute(
       `SELECT r.id_reporte, r.uuid, r.id_usuario,
-              r.tipo_contaminacion, r.estado, r.nivel_severidad,
+              r.tipo_contaminacion, r.subcategoria, r.estado, r.nivel_severidad,
               r.titulo, r.descripcion,
               r.latitud, r.longitud, r.direccion, r.municipio, r.departamento,
               r.ia_etiquetas, r.ia_confianza, r.ia_procesado,
@@ -199,7 +200,7 @@ export const ReporteModel = {
     const safeLimit  = Math.max(1, Math.min(100, parseInt(limit,  10) || 20));
     const safeOffset = Math.max(0,               parseInt(offset, 10) || 0);
     const [rows] = await pool.execute(
-      `SELECT id_reporte, uuid, tipo_contaminacion, estado, nivel_severidad,
+      `SELECT id_reporte, uuid, tipo_contaminacion, subcategoria, estado, nivel_severidad,
               titulo, municipio, departamento, votos_relevancia, vistas,
               created_at, updated_at
        FROM reportes
@@ -217,6 +218,7 @@ export const ReporteModel = {
   create: async ({
     id_usuario,
     tipo_contaminacion,
+    subcategoria = null,
     nivel_severidad = 'medio',
     titulo,
     descripcion = null,
@@ -227,21 +229,22 @@ export const ReporteModel = {
     departamento = null,
   }) => {
     const uuid = randomUUID();
+    // Orden base esperado: tipo_contaminacion, estado, nivel_severidad.
     const hasCoords = latitud !== null && latitud !== undefined &&
                       longitud !== null && longitud !== undefined;
 
     if (hasCoords) {
       const [result] = await pool.execute(
         `INSERT INTO reportes
-           (uuid, id_usuario, tipo_contaminacion, estado, nivel_severidad, titulo, descripcion,
+           (uuid, id_usuario, tipo_contaminacion, subcategoria, estado, nivel_severidad, titulo, descripcion,
             latitud, longitud, direccion, municipio, departamento, punto_geo)
          VALUES
-           (?, ?, ?, ?, ?, ?, ?,
+           (?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ST_GeomFromText(CONCAT('POINT(', ?, ' ', ?, ')'), 4326))`,
         [
           uuid,
-          id_usuario, tipo_contaminacion, ESTADO_INICIAL_REPORTE, nivel_severidad, titulo, descripcion,
+          id_usuario, tipo_contaminacion, subcategoria, ESTADO_INICIAL_REPORTE, nivel_severidad, titulo, descripcion,
           latitud, longitud, direccion, municipio, departamento,
           longitud, latitud,
         ]
@@ -250,11 +253,11 @@ export const ReporteModel = {
     } else {
       const [result] = await pool.execute(
         `INSERT INTO reportes
-           (uuid, id_usuario, tipo_contaminacion, estado, nivel_severidad, titulo, descripcion,
+           (uuid, id_usuario, tipo_contaminacion, subcategoria, estado, nivel_severidad, titulo, descripcion,
             latitud, longitud, direccion, municipio, departamento)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [uuid,
-         id_usuario, tipo_contaminacion, ESTADO_INICIAL_REPORTE, nivel_severidad, titulo, descripcion,
+         id_usuario, tipo_contaminacion, subcategoria, ESTADO_INICIAL_REPORTE, nivel_severidad, titulo, descripcion,
          null, null, direccion, municipio, departamento]
       );
       return result.insertId;
@@ -266,7 +269,7 @@ export const ReporteModel = {
   
   update: async (id_reporte, campos) => {
     const permitidos = [
-      'estado', 'nivel_severidad', 'titulo', 'descripcion',
+      'estado', 'nivel_severidad', 'titulo', 'descripcion', 'subcategoria',
       'direccion', 'municipio', 'departamento', 'comentario_moderacion',
     ];
 
@@ -495,6 +498,232 @@ export const ReporteModel = {
     );
 
     return rows;
+  },
+
+  toggleLike: async (id_reporte, id_usuario) => {
+    if (!await tableExists('reporte_likes')) {
+      await ReporteModel.incrementarVistas(id_reporte);
+      const reporte = await ReporteModel.findById(id_reporte);
+      return {
+        liked: false,
+        votos_relevancia: Number(reporte?.votos_relevancia) || 0,
+      };
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [existingRows] = await connection.execute(
+        `SELECT id_like
+         FROM reporte_likes
+         WHERE id_reporte = ? AND id_usuario = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [id_reporte, id_usuario]
+      );
+
+      const liked = existingRows.length === 0;
+      if (liked) {
+        await connection.execute(
+          `INSERT INTO reporte_likes (id_reporte, id_usuario)
+           VALUES (?, ?)`,
+          [id_reporte, id_usuario]
+        );
+        await connection.execute(
+          `UPDATE reportes
+           SET votos_relevancia = votos_relevancia + 1
+           WHERE id_reporte = ? AND deleted_at IS NULL`,
+          [id_reporte]
+        );
+      } else {
+        await connection.execute(
+          `DELETE FROM reporte_likes
+           WHERE id_reporte = ? AND id_usuario = ?`,
+          [id_reporte, id_usuario]
+        );
+        await connection.execute(
+          `UPDATE reportes
+           SET votos_relevancia = GREATEST(votos_relevancia - 1, 0)
+           WHERE id_reporte = ? AND deleted_at IS NULL`,
+          [id_reporte]
+        );
+      }
+
+      const [[row]] = await connection.execute(
+        `SELECT votos_relevancia
+         FROM reportes
+         WHERE id_reporte = ?`,
+        [id_reporte]
+      );
+
+      await connection.commit();
+      return {
+        liked,
+        votos_relevancia: Number(row?.votos_relevancia) || 0,
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  },
+
+  findTrending: async ({ limit = 12 } = {}) => {
+    const safeLimit = Math.max(1, Math.min(50, parseInt(limit, 10) || 12));
+    const [rows] = await pool.execute(
+      `SELECT r.id_reporte, r.uuid, r.id_usuario,
+              r.tipo_contaminacion, r.subcategoria, r.estado, r.nivel_severidad,
+              r.titulo, r.descripcion,
+              r.latitud, r.longitud, r.direccion, r.municipio, r.departamento,
+              r.votos_relevancia, r.vistas,
+              r.created_at, r.updated_at,
+              (r.votos_relevancia * 3 + r.vistas + GREATEST(0, 30 - TIMESTAMPDIFF(DAY, r.created_at, NOW()))) AS trending_score
+       FROM reportes r
+       WHERE r.deleted_at IS NULL
+       ORDER BY trending_score DESC, r.created_at DESC
+       LIMIT ${safeLimit}`
+    );
+
+    return rows;
+  },
+
+  getStatsIA: async ({ dias = 30 } = {}) => {
+    const safeDias = Math.max(1, Math.min(365, parseInt(dias, 10) || 30));
+
+    const [[summary]] = await pool.execute(
+      `SELECT
+         COUNT(*) AS total_procesados,
+         ROUND(AVG(COALESCE(ia_confianza, 0)), 0) AS confianza_promedio,
+         SUM(CASE WHEN ia_confianza >= 75 THEN 1 ELSE 0 END) AS confianza_alta,
+         SUM(CASE WHEN ia_confianza >= 50 AND ia_confianza < 75 THEN 1 ELSE 0 END) AS confianza_media,
+         SUM(CASE WHEN ia_confianza < 50 THEN 1 ELSE 0 END) AS confianza_baja
+       FROM reportes
+       WHERE deleted_at IS NULL
+         AND ia_procesado = 1
+         AND created_at >= DATE_SUB(NOW(), INTERVAL ${safeDias} DAY)`
+    );
+
+    const [topEtiquetas] = await pool.execute(
+      `SELECT tipo_contaminacion AS label,
+              tipo_contaminacion AS nombre,
+              COUNT(*) AS count
+       FROM reportes
+       WHERE deleted_at IS NULL
+         AND ia_procesado = 1
+         AND created_at >= DATE_SUB(NOW(), INTERVAL ${safeDias} DAY)
+       GROUP BY tipo_contaminacion
+       ORDER BY count DESC
+       LIMIT 8`
+    );
+
+    const [timeline] = await pool.execute(
+      `SELECT DATE(created_at) AS fecha,
+              COUNT(*) AS procesados
+       FROM reportes
+       WHERE deleted_at IS NULL
+         AND ia_procesado = 1
+         AND created_at >= DATE_SUB(NOW(), INTERVAL ${safeDias} DAY)
+       GROUP BY DATE(created_at)
+       ORDER BY fecha ASC`
+    );
+
+    const totalProcesados = Number(summary?.total_procesados) || 0;
+    return {
+      total_procesados: totalProcesados,
+      accuracy: {
+        aceptadas: totalProcesados,
+        modificadas: 0,
+        porcentaje: totalProcesados > 0 ? 100 : 0,
+      },
+      confianza: {
+        promedio: Number(summary?.confianza_promedio) || 0,
+        distribucion: {
+          baja: Number(summary?.confianza_baja) || 0,
+          media: Number(summary?.confianza_media) || 0,
+          alta: Number(summary?.confianza_alta) || 0,
+        },
+      },
+      top_etiquetas: topEtiquetas,
+      timeline: timeline.map((row) => ({
+        ...row,
+        fecha: row.fecha instanceof Date ? row.fecha.toISOString().slice(0, 10) : row.fecha,
+      })),
+    };
+  },
+
+  getZonasRiesgo: async ({ dias = 30, min_score = 30 } = {}) => {
+    const safeDias = Math.max(1, Math.min(365, parseInt(dias, 10) || 30));
+    const safeMinScore = Math.max(0, Math.min(100, Number(min_score) || 0));
+
+    const [rows] = await pool.execute(
+      `SELECT
+         MIN(id_reporte) AS id,
+         municipio,
+         departamento,
+         tipo_contaminacion AS tipo_dominante,
+         subcategoria AS subcategoria_dominante,
+         AVG(latitud) AS lat,
+         AVG(longitud) AS lng,
+         COUNT(*) AS n_reportes,
+         AVG(CASE nivel_severidad
+           WHEN 'critico' THEN 4
+           WHEN 'alto' THEN 3
+           WHEN 'medio' THEN 2
+           WHEN 'bajo' THEN 1
+           ELSE 1
+         END) AS severidad_promedio,
+         MAX(created_at) AS ultimo_reporte
+       FROM reportes
+       WHERE deleted_at IS NULL
+         AND latitud IS NOT NULL
+         AND longitud IS NOT NULL
+         AND created_at >= DATE_SUB(NOW(), INTERVAL ${safeDias} DAY)
+       GROUP BY municipio, departamento, tipo_contaminacion, subcategoria
+       HAVING n_reportes > 0
+       ORDER BY n_reportes DESC, severidad_promedio DESC
+       LIMIT 30`
+    );
+
+    return rows
+      .map((row) => {
+        const score = Math.min(100, Math.round((Number(row.n_reportes) * 18) + (Number(row.severidad_promedio) * 14)));
+        const nivel = score >= 80 ? 'critico' : score >= 60 ? 'alto' : score >= 35 ? 'medio' : 'bajo';
+        return {
+          id: `${row.id}-${row.tipo_dominante}`,
+          zona_id: `${row.id}-${row.tipo_dominante}`,
+          municipio: row.municipio,
+          departamento: row.departamento,
+          tipo_dominante: row.tipo_dominante,
+          subcategoria_dominante: row.subcategoria_dominante,
+          centro: {
+            lat: Number(row.lat),
+            lng: Number(row.lng),
+          },
+          n_reportes: Number(row.n_reportes),
+          severidad_promedio: Number(row.severidad_promedio),
+          ultimo_reporte: row.ultimo_reporte,
+          score,
+          nivel,
+        };
+      })
+      .filter((zona) => zona.score >= safeMinScore);
+  },
+
+  getAlertasPredictivas: async ({ nivel_min = 'medio', tipo, limite = 10, ...params } = {}) => {
+    const nivelRank = { bajo: 1, medio: 2, alto: 3, critico: 4 };
+    const minRank = nivelRank[nivel_min] || 2;
+    const zonas = await ReporteModel.getZonasRiesgo({
+      dias: params.dias || 30,
+      min_score: 0,
+    });
+    const safeLimit = Math.max(1, Math.min(50, parseInt(limite, 10) || 10));
+
+    return zonas
+      .filter((zona) => (nivelRank[zona.nivel] || 1) >= minRank)
+      .filter((zona) => !tipo || zona.tipo_dominante === tipo)
+      .slice(0, safeLimit);
   },
 
 };

@@ -7,6 +7,7 @@ import authRouter from '../routes/auth.routes.js';
 import reporteRouter from '../routes/reporte.routes.js';
 import categoriaRouter from '../routes/categoria-riesgo.routes.js';
 import adminRouter from '../routes/admin.routes.js';
+import chatbotRouter from '../routes/chatbot.routes.js';
 import { getCorsOptions, getHelmetOptions } from './config/security.config.js';
 import { getUploadDir } from './config/upload.config.js';
 
@@ -34,6 +35,7 @@ app.use(`${apiPrefix}/auth`, authRouter);
 app.use(`${apiPrefix}/reportes`, reporteRouter);
 app.use(`${apiPrefix}/categorias`, categoriaRouter);
 app.use(`${apiPrefix}/admin`, adminRouter);
+app.use(`${apiPrefix}/chatbot`, chatbotRouter);
 
  
 app.use(notFoundHandler);

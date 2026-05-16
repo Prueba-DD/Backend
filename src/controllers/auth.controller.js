@@ -164,6 +164,9 @@ const toPublicUser = (user) => ({
   email_verificado: user.email_verificado,
   avatar_url: user.avatar_url,
   telefono: user.telefono,
+  es_oauth: Boolean(user.google_id || user.facebook_id || (
+    typeof user.password_hash === 'string' && user.password_hash.startsWith('oauth:')
+  )),
   notification_preferences: parseNotificationPreferences(user.notification_preferences),
   created_at: user.created_at,
 });
@@ -256,6 +259,50 @@ const buildEmailVerificationLink = (token) => {
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
+const buildPublicUploadUrl = (filename) => {
+  const apiBaseUrl = process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+  return `${apiBaseUrl.replace(/\/+$/, '')}/uploads/${filename}`;
+};
+
+const buildOtpEmailHtml = ({ user, otpCode }) => generarTemplateBaseCorreo({
+  title: 'Verifica tu correo',
+  subtitle: 'Codigo de seguridad de GreenAlert',
+  previewText: 'Usa este codigo de 6 digitos para activar tu cuenta.',
+  content: `
+    <div class="message">
+      Hola ${user.nombre}, usa este codigo para verificar tu correo electronico en GreenAlert.
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <div style="display:inline-block;background:#ecfdf5;border:1px solid #10b981;border-radius:12px;padding:18px 24px;">
+        <p style="margin:0 0 8px;color:#047857;font-size:13px;font-weight:600;">Codigo de verificacion</p>
+        <p style="margin:0;color:#064e3b;font-size:36px;letter-spacing:8px;font-weight:800;">${otpCode}</p>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Seguridad</h3>
+      <p>Este codigo expira en ${OTP_MINUTES} minutos. Si no creaste esta cuenta, ignora este correo.</p>
+    </div>
+  `,
+});
+
+const sendVerificationOtpEmail = async (user) => {
+  const otpCode = generateOtpCode();
+  const otpCodeHash = hashOtpCode(otpCode);
+  const otpExp = new Date(Date.now() + OTP_MINUTES * 60 * 1000);
+
+  await UsuarioModel.setOtp(user.id_usuario, otpCodeHash, otpExp);
+  await UsuarioModel.updateOtpLastRequest(user.id_usuario);
+  await enviarCorreo(
+    user.email,
+    'Codigo de verificacion - GreenAlert',
+    buildOtpEmailHtml({ user, otpCode })
+  );
+
+  return {
+    expiresIn: OTP_MINUTES * 60,
+  };
+};
+
 export const register = async (req, res, next) => {
   try {
     const { nombre, apellido, email, password, telefono } = req.body ?? {};
@@ -304,30 +351,7 @@ export const register = async (req, res, next) => {
 
     // Generar y enviar OTP automáticamente después del registro
     try {
-      const { rawToken, tokenHash } = buildVerificationToken();
-      const tokenExp = getVerificationTokenExpiration();
-      const verificationLink = buildEmailVerificationLink(rawToken);
-
-      await UsuarioModel.setEmailVerificationToken(idUsuario, tokenHash, tokenExp);
-      const html = generarTemplateBaseCorreo({
-        title: 'Verifica tu correo',
-        subtitle: 'Confirma tu cuenta de GreenAlert',
-        previewText: 'Confirma tu correo para activar tu cuenta de GreenAlert.',
-        actionUrl: verificationLink,
-        actionText: 'Verificar correo',
-        content: `
-          <div class="message">
-            Hola ${createdUser.nombre}, tu cuenta fue creada correctamente.
-            Para completar el registro, confirma tu correo electronico con el siguiente enlace.
-          </div>
-          <div class="panel">
-            <h3>Seguridad</h3>
-            <p>Este enlace expira en ${VERIFICATION_TOKEN_HOURS} horas. Si no creaste esta cuenta, ignora este correo.</p>
-          </div>
-        `,
-      });
-
-      await enviarCorreo(createdUser.email, 'Verifica tu correo - GreenAlert', html);
+      await sendVerificationOtpEmail(createdUser);
     } catch (emailError) {
       console.error('Error enviando verificacion en registro:', emailError);
       // No fallar el registro si falla el email, pero loguear el error
@@ -350,7 +374,7 @@ export const register = async (req, res, next) => {
         ...authPayload,
         pendingEmailVerification: true,
       },
-      'Cuenta creada correctamente. Verifica tu email con el enlace enviado.',
+      'Cuenta creada correctamente. Verifica tu email con el codigo enviado.',
       201
     );
   } catch (error) {
@@ -561,6 +585,31 @@ export const updatePerfil = async (req, res, next) => {
     }
 
     return successResponse(res, { user: updatedUser }, 'Perfil actualizado', 200);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const updateAvatar = async (req, res, next) => {
+  try {
+    const id_usuario = req.user?.sub;
+
+    if (!id_usuario) {
+      return errorResponse(res, 'No autorizado.', 401);
+    }
+
+    if (!req.file) {
+      return errorResponse(res, 'Imagen de avatar requerida.', 400);
+    }
+
+    const avatarUrl = buildPublicUploadUrl(req.file.filename);
+    const updatedUser = await UsuarioModel.updateAvatar(id_usuario, avatarUrl);
+
+    if (!updatedUser) {
+      return errorResponse(res, 'Usuario no encontrado.', 404);
+    }
+
+    return successResponse(res, { user: updatedUser }, 'Avatar actualizado correctamente.', 200);
   } catch (error) {
     return next(error);
   }
@@ -818,6 +867,18 @@ export const sendVerificationOtp = async (req, res, next) => {
       }
     }
 
+    const otp = await sendVerificationOtpEmail(user);
+
+    return successResponse(
+      res,
+      {
+        message: `Codigo de verificacion enviado a ${user.email}`,
+        expiresIn: otp.expiresIn,
+      },
+      'Codigo OTP enviado correctamente.',
+      200
+    );
+
     // Generar OTP
     const otpCode = generateOtpCode();
     const otpCodeHash = hashOtpCode(otpCode);
@@ -877,7 +938,7 @@ export const verifyEmailOtp = async (req, res, next) => {
       return errorResponse(res, 'No autorizado.', 401);
     }
 
-    const { otp_code } = req.body ?? {};
+    const otp_code = req.body?.otp_code ?? req.body?.codigo;
 
     if (typeof otp_code !== 'string' || otp_code.length !== 6 || !/^\d{6}$/.test(otp_code)) {
       return errorResponse(res, 'El código OTP debe ser un número de 6 dígitos.', 400);
@@ -945,7 +1006,7 @@ export const updateNotifications = async (req, res, next) => {
     const id_usuario = req.user?.sub;
     if (!id_usuario) return errorResponse(res, 'No autorizado.', 401);
 
-    const { preferences } = req.body ?? {};
+    const preferences = req.body?.preferences ?? req.body;
     if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) {
       return errorResponse(res, 'Las preferencias deben ser un objeto.', 400);
     }
@@ -1106,6 +1167,51 @@ export const googleLogin = async (req, res, next) => {
       res,
       authPayload,
       'Autenticación con Google exitosa.',
+      200
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const googleAccessTokenLogin = async (req, res, next) => {
+  try {
+    const { access_token, id_token } = req.body ?? {};
+
+    if (id_token) {
+      req.body.id_token = id_token;
+      return googleLogin(req, res, next);
+    }
+
+    if (!access_token || typeof access_token !== 'string') {
+      return errorResponse(res, 'El access_token de Google es requerido.', 400);
+    }
+
+    const googleUser = await getGoogleUserInfo(access_token);
+    if (!googleUser.success) {
+      return errorResponse(res, 'No fue posible obtener informacion de Google.', 401);
+    }
+
+    let user;
+    try {
+      user = await findOrCreateGoogleUser(googleUser);
+    } catch (error) {
+      if (error.statusCode) {
+        return errorResponse(res, error.message, error.statusCode);
+      }
+      throw error;
+    }
+
+    if (!user) {
+      return errorResponse(res, 'No fue posible crear la cuenta con este correo.', 400);
+    }
+
+    const authPayload = await buildAuthPayload(user, req);
+
+    return successResponse(
+      res,
+      authPayload,
+      'Autenticacion con Google exitosa.',
       200
     );
   } catch (error) {
@@ -1276,6 +1382,59 @@ export const getFacebookAuthUrl = async (req, res, next) => {
       'URL de autenticacion con Facebook generada correctamente.',
       200
     );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const facebookLogin = async (req, res, next) => {
+  try {
+    const { code, access_token } = req.body ?? {};
+
+    let accessToken = access_token;
+    if (!accessToken) {
+      if (!code || typeof code !== 'string') {
+        return errorResponse(res, 'Codigo de autorizacion de Facebook requerido.', 400);
+      }
+
+      const tokenExchange = await exchangeFacebookCodeForToken(code);
+      if (!tokenExchange.success) {
+        return errorResponseWithDevelopmentDetails(
+          res,
+          'No fue posible intercambiar el codigo de Facebook.',
+          400,
+          tokenExchange.facebookError || tokenExchange.error
+        );
+      }
+      accessToken = tokenExchange.accessToken;
+    }
+
+    const facebookUser = await getFacebookUserInfo(accessToken);
+    if (!facebookUser.success) {
+      return errorResponseWithDevelopmentDetails(
+        res,
+        'No fue posible obtener informacion de Facebook.',
+        400,
+        facebookUser.facebookError || facebookUser.error
+      );
+    }
+
+    let user;
+    try {
+      user = await findOrCreateFacebookUser(facebookUser);
+    } catch (error) {
+      if (error.statusCode) {
+        return errorResponse(res, error.message, error.statusCode);
+      }
+      throw error;
+    }
+
+    if (!user) {
+      return errorResponse(res, 'No fue posible autenticar con Facebook.', 400);
+    }
+
+    const authPayload = await buildAuthPayload(user, req);
+    return successResponse(res, authPayload, 'Inicio de sesion con Facebook exitoso.', 200);
   } catch (error) {
     return next(error);
   }
