@@ -93,7 +93,7 @@ const buildCategoryPayload = ({ requireAll = false, body = {} } = {}) => {
  */
 export const obtenerTodasLasCategorias = async (req, res, next) => {
   try {
-    const estadisticas = await CategoriaRiesgoModel.getEstadisticasPorSeveridad();
+    const categorias = await CategoriaRiesgoModel.findAll(true);
     
     if (!categorias || categorias.length === 0) {
       return successResponse(res, { categorias: [] }, 'No hay categorías disponibles.');

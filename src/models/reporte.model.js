@@ -1,4 +1,6 @@
 import pool from '../config/database.js';
+import { tableExists } from '../config/schema-compat.js';
+import { CATEGORIAS_FALLBACK } from './categoria-riesgo.model.js';
 import { randomUUID } from 'crypto';
 
 export const ESTADO_INICIAL_REPORTE = 'pendiente';
@@ -357,6 +359,47 @@ export const ReporteModel = {
 
   // Conteos de reportes agrupados por categoria para analitica publica
   getStatsByCategoria: async () => {
+    if (!await tableExists('categorias_riesgo')) {
+      const [rows] = await pool.execute(
+        `SELECT
+           tipo_contaminacion AS codigo,
+           COUNT(*) AS total_reportes,
+           SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) AS pendientes,
+           SUM(CASE WHEN estado = 'en_revision' THEN 1 ELSE 0 END) AS en_revision,
+           SUM(CASE WHEN estado = 'verificado' THEN 1 ELSE 0 END) AS verificados,
+           SUM(CASE WHEN estado = 'en_proceso' THEN 1 ELSE 0 END) AS en_proceso,
+           SUM(CASE WHEN estado = 'resuelto' THEN 1 ELSE 0 END) AS resueltos,
+           SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END) AS rechazados,
+           SUM(CASE WHEN nivel_severidad = 'bajo' THEN 1 ELSE 0 END) AS bajo,
+           SUM(CASE WHEN nivel_severidad = 'medio' THEN 1 ELSE 0 END) AS medio,
+           SUM(CASE WHEN nivel_severidad = 'alto' THEN 1 ELSE 0 END) AS alto,
+           SUM(CASE WHEN nivel_severidad = 'critico' THEN 1 ELSE 0 END) AS critico
+         FROM reportes
+         WHERE deleted_at IS NULL
+         GROUP BY tipo_contaminacion`
+      );
+      const statsByCodigo = new Map(rows.map((row) => [row.codigo, row]));
+
+      return CATEGORIAS_FALLBACK
+        .filter((categoria) => categoria.activo)
+        .map((categoria) => ({
+          ...categoria,
+          total_reportes: 0,
+          pendientes: 0,
+          en_revision: 0,
+          verificados: 0,
+          en_proceso: 0,
+          resueltos: 0,
+          rechazados: 0,
+          bajo: 0,
+          medio: 0,
+          alto: 0,
+          critico: 0,
+          ...(statsByCodigo.get(categoria.codigo) ?? {}),
+        }))
+        .sort((a, b) => Number(b.total_reportes) - Number(a.total_reportes) || a.nombre.localeCompare(b.nombre));
+    }
+
     const [rows] = await pool.execute(
       `SELECT
          cr.codigo,

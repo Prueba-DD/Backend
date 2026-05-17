@@ -1,4 +1,158 @@
 import pool from '../config/database.js';
+import { tableExists } from '../config/schema-compat.js';
+
+export const CATEGORIAS_FALLBACK = [
+  {
+    id_categoria: 1,
+    codigo: 'agua',
+    nombre: 'Contaminacion de Agua',
+    descripcion: 'Contaminacion del recurso hidrico',
+    icono: 'droplet',
+    color_hex: '#3B82F6',
+    nivel_prioridad_default: 3,
+    activo: 1,
+  },
+  {
+    id_categoria: 2,
+    codigo: 'aire',
+    nombre: 'Contaminacion del Aire',
+    descripcion: 'Presencia de contaminantes atmosfericos',
+    icono: 'wind',
+    color_hex: '#6B7280',
+    nivel_prioridad_default: 2,
+    activo: 1,
+  },
+  {
+    id_categoria: 3,
+    codigo: 'suelo',
+    nombre: 'Contaminacion del Suelo',
+    descripcion: 'Degradacion o contaminacion del suelo',
+    icono: 'leaf',
+    color_hex: '#84CC16',
+    nivel_prioridad_default: 2,
+    activo: 1,
+  },
+  {
+    id_categoria: 4,
+    codigo: 'ruido',
+    nombre: 'Contaminacion por Ruido',
+    descripcion: 'Exceso de ruido ambiental',
+    icono: 'volume2',
+    color_hex: '#A855F7',
+    nivel_prioridad_default: 2,
+    activo: 1,
+  },
+  {
+    id_categoria: 5,
+    codigo: 'residuos',
+    nombre: 'Residuos y Desechos',
+    descripcion: 'Acumulacion o disposicion incorrecta de basura',
+    icono: 'trash2',
+    color_hex: '#EF4444',
+    nivel_prioridad_default: 2,
+    activo: 1,
+  },
+  {
+    id_categoria: 6,
+    codigo: 'luminica',
+    nombre: 'Contaminacion Luminica',
+    descripcion: 'Exceso de iluminacion artificial',
+    icono: 'lightbulb',
+    color_hex: '#F59E0B',
+    nivel_prioridad_default: 1,
+    activo: 1,
+  },
+  {
+    id_categoria: 7,
+    codigo: 'deforestacion',
+    nombre: 'Deforestacion',
+    descripcion: 'Tala o perdida de cobertura forestal',
+    icono: 'trees',
+    color_hex: '#22C55E',
+    nivel_prioridad_default: 3,
+    activo: 1,
+  },
+  {
+    id_categoria: 8,
+    codigo: 'incendios_forestales',
+    nombre: 'Incendios Forestales',
+    descripcion: 'Fuegos descontrolados en bosques o vegetacion',
+    icono: 'flame',
+    color_hex: '#DC2626',
+    nivel_prioridad_default: 4,
+    activo: 1,
+  },
+  {
+    id_categoria: 9,
+    codigo: 'deslizamientos',
+    nombre: 'Deslizamientos',
+    descripcion: 'Movimientos de masa en laderas o taludes',
+    icono: 'mountain',
+    color_hex: '#92400E',
+    nivel_prioridad_default: 4,
+    activo: 1,
+  },
+  {
+    id_categoria: 10,
+    codigo: 'avalanchas_fluviotorrenciales',
+    nombre: 'Avalanchas Fluviotorrenciales',
+    descripcion: 'Crecidas subitas de rios, quebradas o arroyos',
+    icono: 'waves',
+    color_hex: '#0EA5E9',
+    nivel_prioridad_default: 4,
+    activo: 1,
+  },
+  {
+    id_categoria: 11,
+    codigo: 'otro',
+    nombre: 'Otro',
+    descripcion: 'Otros tipos de riesgo ambiental',
+    icono: 'helpCircle',
+    color_hex: '#8B5CF6',
+    nivel_prioridad_default: 2,
+    activo: 1,
+  },
+];
+
+const hasCategoriasTable = () => tableExists('categorias_riesgo');
+
+const withReportStats = async (categorias) => {
+  const [rows] = await pool.execute(
+    `SELECT tipo_contaminacion AS codigo,
+            COUNT(*) AS total_reportes,
+            SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) AS pendientes,
+            SUM(CASE WHEN estado = 'en_revision' THEN 1 ELSE 0 END) AS en_revision,
+            SUM(CASE WHEN estado = 'verificado' THEN 1 ELSE 0 END) AS verificados,
+            SUM(CASE WHEN estado = 'en_proceso' THEN 1 ELSE 0 END) AS en_proceso,
+            SUM(CASE WHEN estado = 'resuelto' THEN 1 ELSE 0 END) AS resueltos,
+            SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END) AS rechazados,
+            SUM(CASE WHEN nivel_severidad = 'bajo' THEN 1 ELSE 0 END) AS bajo,
+            SUM(CASE WHEN nivel_severidad = 'medio' THEN 1 ELSE 0 END) AS medio,
+            SUM(CASE WHEN nivel_severidad = 'alto' THEN 1 ELSE 0 END) AS alto,
+            SUM(CASE WHEN nivel_severidad = 'critico' THEN 1 ELSE 0 END) AS critico
+     FROM reportes
+     WHERE deleted_at IS NULL
+     GROUP BY tipo_contaminacion`
+  );
+
+  const statsByCodigo = new Map(rows.map((row) => [row.codigo, row]));
+
+  return categorias.map((categoria) => ({
+    ...categoria,
+    total_reportes: 0,
+    pendientes: 0,
+    en_revision: 0,
+    verificados: 0,
+    en_proceso: 0,
+    resueltos: 0,
+    rechazados: 0,
+    bajo: 0,
+    medio: 0,
+    alto: 0,
+    critico: 0,
+    ...(statsByCodigo.get(categoria.codigo) ?? {}),
+  }));
+};
 
 /**
  * Modelo para gestionar categorías de riesgo ambiental
@@ -16,6 +170,14 @@ export const CategoriaRiesgoModel = {
    */
   findAll: async (activas = true) => {
     try {
+      if (!await hasCategoriasTable()) {
+        const categorias = activas
+          ? CATEGORIAS_FALLBACK.filter((categoria) => categoria.activo)
+          : CATEGORIAS_FALLBACK;
+
+        return withReportStats(categorias);
+      }
+
       const whereClause = activas ? ' WHERE cr.activo = 1' : '';
       
       const [rows] = await pool.execute(
@@ -52,6 +214,14 @@ export const CategoriaRiesgoModel = {
    */
   findByCodigo: async (codigo) => {
     try {
+      if (!await hasCategoriasTable()) {
+        const [categoria] = await withReportStats(
+          CATEGORIAS_FALLBACK.filter((item) => item.codigo === codigo && item.activo)
+        );
+
+        return categoria ?? null;
+      }
+
       const [rows] = await pool.execute(
         `SELECT 
           cr.id_categoria,
@@ -80,6 +250,10 @@ export const CategoriaRiesgoModel = {
 
   findByCodigoIncludingInactive: async (codigo) => {
     try {
+      if (!await hasCategoriasTable()) {
+        return CATEGORIAS_FALLBACK.find((item) => item.codigo === codigo) ?? null;
+      }
+
       const [rows] = await pool.execute(
         `SELECT 
           cr.id_categoria,
@@ -115,6 +289,12 @@ export const CategoriaRiesgoModel = {
     activo = true,
   }) => {
     try {
+      if (!await hasCategoriasTable()) {
+        const error = new Error('La tabla categorias_riesgo no existe en la base de datos actual.');
+        error.code = 'ER_NO_SUCH_TABLE';
+        throw error;
+      }
+
       const [result] = await pool.execute(
         `INSERT INTO categorias_riesgo
            (codigo, nombre, descripcion, icono, color_hex, nivel_prioridad_default, activo)
@@ -139,6 +319,10 @@ export const CategoriaRiesgoModel = {
 
   updateByCodigo: async (codigo, fields) => {
     try {
+      if (!await hasCategoriasTable()) {
+        return false;
+      }
+
       const allowed = [
         'nombre',
         'descripcion',
@@ -178,6 +362,10 @@ export const CategoriaRiesgoModel = {
 
   updateActivoByCodigo: async (codigo, activo) => {
     try {
+      if (!await hasCategoriasTable()) {
+        return false;
+      }
+
       const [result] = await pool.execute(
         `UPDATE categorias_riesgo
          SET activo = ?, updated_at = NOW()
@@ -198,6 +386,10 @@ export const CategoriaRiesgoModel = {
    */
   getEstadisticasPorCategoria: async () => {
     try {
+      if (!await hasCategoriasTable()) {
+        return withReportStats(CATEGORIAS_FALLBACK.filter((categoria) => categoria.activo));
+      }
+
       const [rows] = await pool.execute(
         `SELECT 
           cr.codigo,
@@ -228,6 +420,10 @@ export const CategoriaRiesgoModel = {
 
   getEstadisticasPorSeveridad: async () => {
     try {
+      if (!await hasCategoriasTable()) {
+        return withReportStats(CATEGORIAS_FALLBACK.filter((categoria) => categoria.activo));
+      }
+
       const [rows] = await pool.execute(
         `SELECT
           cr.codigo,
@@ -275,6 +471,12 @@ export const CategoriaRiesgoModel = {
    */
   obtenerCodigosValidos: async () => {
     try {
+      if (!await hasCategoriasTable()) {
+        return CATEGORIAS_FALLBACK
+          .filter((categoria) => categoria.activo)
+          .map((categoria) => categoria.codigo);
+      }
+
       const [rows] = await pool.execute(
         `SELECT codigo FROM categorias_riesgo WHERE activo = 1 ORDER BY nombre ASC`,
         []
