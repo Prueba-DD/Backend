@@ -41,18 +41,18 @@ export const UsuarioModel = {
     const notificationPreferences = await UsuarioModel._optionalColumnSelect(
       'notification_preferences'
     );
+    const googleId = await UsuarioModel._optionalColumnSelect('google_id');
+    const facebookId = await UsuarioModel._optionalColumnSelect('facebook_id');
 
-    return `${UsuarioModel._publicUserFields}, ${notificationPreferences}`;
+    return `${UsuarioModel._publicUserFields}, ${notificationPreferences}, ${googleId}, ${facebookId}`;
   },
   
     // Busca un usuario por su email 
   findByEmail: async (email) => {
     const publicFields = await UsuarioModel._publicUserSelect();
-    const googleId = await UsuarioModel._optionalColumnSelect('google_id');
-    const facebookId = await UsuarioModel._optionalColumnSelect('facebook_id');
 
     const [rows] = await pool.execute(
-      `SELECT ${publicFields}, password_hash, ${googleId}, ${facebookId}, ultimo_acceso
+      `SELECT ${publicFields}, password_hash, ultimo_acceso
        FROM usuarios
        WHERE email = ? AND deleted_at IS NULL
        LIMIT 1`,
@@ -208,6 +208,21 @@ export const UsuarioModel = {
        SET nombre = ?, apellido = ?, telefono = ?, avatar_url = ?, updated_at = NOW()
        WHERE id_usuario = ? AND deleted_at IS NULL`,
       [nombre, apellido, telefono, avatar_url, id_usuario]
+    );
+
+    if (result.affectedRows === 0) {
+      return null;
+    }
+
+    return UsuarioModel.findByIdWithDetails(id_usuario);
+  },
+
+  updateAvatar: async (id_usuario, avatar_url) => {
+    const [result] = await pool.execute(
+      `UPDATE usuarios
+       SET avatar_url = ?, updated_at = NOW()
+       WHERE id_usuario = ? AND deleted_at IS NULL`,
+      [avatar_url, id_usuario]
     );
 
     if (result.affectedRows === 0) {

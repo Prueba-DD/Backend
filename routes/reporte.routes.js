@@ -10,6 +10,12 @@ import {
   getStatsByCategoria,
   getStatsTimeline,
   getHeatmapPoints,
+  getStatsIA,
+  getZonasRiesgo,
+  getAlertasPredictivas,
+  getTrendingReportes,
+  toggleLikeReporte,
+  analizarImagen,
   getMisReportes,
   updateReporte,
   deleteReporte,
@@ -26,9 +32,15 @@ reporteRouter.get('/stats', getStats);
 reporteRouter.get('/stats/categoria', getStatsByCategoria);
 reporteRouter.get('/stats/timeline', getStatsTimeline);
 reporteRouter.get('/stats/heatmap', getHeatmapPoints);
+reporteRouter.get('/stats/ia', verifyToken, requireRoles('admin', 'moderador'), getStatsIA);
+reporteRouter.get('/zonas-riesgo', verifyToken, requireRoles('admin', 'moderador'), getZonasRiesgo);
+reporteRouter.get('/alertas-predictivas', getAlertasPredictivas);
+reporteRouter.get('/trending', getTrendingReportes);
 reporteRouter.get('/export', verifyToken, requireRoles('admin', 'moderador'), exportReportes);
 reporteRouter.get('/mis-reportes', verifyToken, getMisReportes);
+reporteRouter.post('/analizar-imagen', verifyToken, upload.single('imagen'), analizarImagen);
 reporteRouter.get('/',      getReportes);
+reporteRouter.post('/:id/like', validatePositiveIdParam('id'), verifyToken, toggleLikeReporte);
 reporteRouter.get('/:id/evidencias', validatePositiveIdParam('id'), verifyToken, listEvidenciasReporte);
 reporteRouter.post('/:id/evidencias', validatePositiveIdParam('id'), verifyToken, upload.single('file'), addEvidenciaReporte);
 reporteRouter.delete(
@@ -39,7 +51,15 @@ reporteRouter.delete(
   deleteEvidenciaReporte
 );
 reporteRouter.get('/:id',   validatePositiveIdParam('id'), getReporteById);
-reporteRouter.post('/',     verifyToken, upload.single('file'), createReporte);
+reporteRouter.post(
+  '/',
+  verifyToken,
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'files', maxCount: 5 },
+  ]),
+  createReporte
+);
 reporteRouter.patch('/:id', validatePositiveIdParam('id'), verifyToken, updateReporte);
 reporteRouter.delete('/:id', validatePositiveIdParam('id'), verifyToken, deleteReporte);
 
