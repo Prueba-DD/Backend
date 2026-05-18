@@ -3,10 +3,14 @@
 -- ============================================================================
 -- This schema reflects the actual field usage in the codebase
 -- Generated from: models, controllers, and migration files
--- Date: April 18, 2026
+-- Date: May 18, 2026
 -- ============================================================================
 
 -- Drop existing tables (use with caution!)
+-- DROP TABLE IF EXISTS notificaciones;
+-- DROP TABLE IF EXISTS reporte_vistas;
+-- DROP TABLE IF EXISTS reporte_likes;
+-- DROP TABLE IF EXISTS refresh_tokens;
 -- DROP TABLE IF EXISTS evidencias;
 -- DROP TABLE IF EXISTS reportes;
 -- DROP TABLE IF EXISTS categorias_riesgo;
@@ -82,24 +86,25 @@ CREATE TABLE IF NOT EXISTS categorias_riesgo (
 -- TABLE: reportes
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS reportes (
-  id_reporte INT AUTO_INCREMENT PRIMARY KEY,
+  id_reporte BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   uuid VARCHAR(36) UNIQUE NOT NULL,
   id_usuario BIGINT UNSIGNED NOT NULL,
   tipo_contaminacion VARCHAR(50) NOT NULL,
+  subcategoria VARCHAR(100) NULL,
   estado ENUM('pendiente', 'en_revision', 'verificado', 'en_proceso', 'rechazado', 'resuelto') DEFAULT 'pendiente',
   nivel_severidad ENUM('bajo', 'medio', 'alto', 'critico') DEFAULT 'medio',
   titulo VARCHAR(255) NOT NULL,
   descripcion TEXT NULL,
   latitud DECIMAL(10, 8) NULL,
   longitud DECIMAL(11, 8) NULL,
-  punto_geo GEOMETRY(POINT, 4326) NULL,
+  punto_geo POINT SRID 4326 NULL,
   direccion VARCHAR(255) NULL,
   municipio VARCHAR(100) NULL,
   departamento VARCHAR(100) NULL,
   votos_relevancia INT DEFAULT 0,
   vistas INT DEFAULT 0,
-  ia_etiquetas TEXT NULL,
-  ia_confianza DECIMAL(3, 2) NULL,
+  ia_etiquetas JSON NULL,
+  ia_confianza DECIMAL(5, 2) NULL,
   ia_procesado BOOLEAN DEFAULT FALSE,
   comentario_moderacion TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -120,6 +125,9 @@ CREATE TABLE IF NOT EXISTS reportes (
   INDEX idx_created_at (created_at),
   INDEX idx_comentario_moderacion (comentario_moderacion(100)),
   INDEX idx_deleted_at (deleted_at),
+  INDEX idx_reportes_estado_created_at (estado, created_at),
+  INDEX idx_reportes_tipo_created_at (tipo_contaminacion, created_at),
+  INDEX idx_reportes_latitud_longitud (latitud, longitud),
   SPATIAL INDEX idx_punto_geo (punto_geo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -127,9 +135,9 @@ CREATE TABLE IF NOT EXISTS reportes (
 -- TABLE: evidencias
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS evidencias (
-  id_evidencia INT AUTO_INCREMENT PRIMARY KEY,
+  id_evidencia BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   uuid VARCHAR(36) UNIQUE NOT NULL,
-  id_reporte INT NOT NULL,
+  id_reporte BIGINT UNSIGNED NOT NULL,
   id_usuario BIGINT UNSIGNED NOT NULL,
   tipo_archivo VARCHAR(50) NULL,
   url_archivo VARCHAR(255) NOT NULL,
@@ -165,7 +173,7 @@ CREATE TABLE IF NOT EXISTS evidencias (
 -- TABLE: refresh_tokens
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS refresh_tokens (
-  id_refresh_token INT AUTO_INCREMENT PRIMARY KEY,
+  id_refresh_token BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_usuario BIGINT UNSIGNED NOT NULL,
   token_hash VARCHAR(64) NOT NULL UNIQUE,
   expires_at DATETIME NOT NULL,
@@ -181,6 +189,69 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   INDEX idx_refresh_usuario (id_usuario),
   INDEX idx_refresh_expires_at (expires_at),
   INDEX idx_refresh_revoked_at (revoked_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- TABLE: reporte_likes
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS reporte_likes (
+  id_like BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_reporte BIGINT UNSIGNED NOT NULL,
+  id_usuario BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_reporte_likes_reporte FOREIGN KEY (id_reporte)
+    REFERENCES reportes(id_reporte) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_reporte_likes_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+
+  UNIQUE KEY uk_reporte_likes_reporte_usuario (id_reporte, id_usuario),
+  INDEX idx_reporte_likes_usuario (id_usuario),
+  INDEX idx_reporte_likes_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- TABLE: reporte_vistas
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS reporte_vistas (
+  id_vista BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_reporte BIGINT UNSIGNED NOT NULL,
+  id_usuario BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_reporte_vistas_reporte FOREIGN KEY (id_reporte)
+    REFERENCES reportes(id_reporte) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_reporte_vistas_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+
+  UNIQUE KEY uk_reporte_vistas_reporte_usuario (id_reporte, id_usuario),
+  INDEX idx_reporte_vistas_usuario (id_usuario),
+  INDEX idx_reporte_vistas_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- TABLE: notificaciones
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS notificaciones (
+  id_notificacion BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  uuid VARCHAR(36) UNIQUE NOT NULL,
+  id_usuario BIGINT UNSIGNED NOT NULL,
+  tipo ENUM('reporte_estado', 'reporte_comentario', 'reporte_creado', 'alerta_zona', 'sistema') NOT NULL,
+  titulo VARCHAR(150) NOT NULL,
+  mensaje TEXT NOT NULL,
+  referencia_tipo VARCHAR(30) NULL,
+  referencia_uuid VARCHAR(36) NULL,
+  link VARCHAR(255) NULL,
+  leida BOOLEAN DEFAULT FALSE,
+  leida_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_notificaciones_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE,
+
+  INDEX idx_notificaciones_usuario_leida (id_usuario, leida, created_at),
+  INDEX idx_notificaciones_uuid (uuid),
+  INDEX idx_notificaciones_referencia (referencia_tipo, referencia_uuid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
@@ -216,7 +287,7 @@ SELECT
 FROM reportes r
 LEFT JOIN evidencias e ON e.id_reporte = r.id_reporte AND e.deleted_at IS NULL
 WHERE r.deleted_at IS NULL
-GROUP BY r.id_reporte;
+GROUP BY r.id_reporte, r.uuid, r.titulo, r.estado, r.municipio;
 
 -- ============================================================================
 -- SEED DATA (Sample categories)
@@ -239,7 +310,7 @@ VALUES
 
 -- Get reports by geographic radius
 DELIMITER //
-CREATE PROCEDURE IF NOT EXISTS sp_reportes_por_radio(
+CREATE PROCEDURE sp_reportes_por_radio(
   IN p_latitude DECIMAL(10, 8),
   IN p_longitude DECIMAL(11, 8),
   IN p_radio_km INT
@@ -270,7 +341,7 @@ DELIMITER ;
 
 -- Get user statistics
 DELIMITER //
-CREATE PROCEDURE IF NOT EXISTS sp_estadisticas_usuarios()
+CREATE PROCEDURE sp_estadisticas_usuarios()
 BEGIN
   SELECT 
     COUNT(*) AS total,
