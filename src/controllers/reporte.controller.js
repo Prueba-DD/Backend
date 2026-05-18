@@ -87,6 +87,26 @@ const parseAnalyticsLimit = (value, defaultValue = 12, maxValue = 60) => {
   return Math.max(1, Math.min(maxValue, parsed));
 };
 
+const getUploadedFiles = (req) => ([
+  ...(req.file ? [req.file] : []),
+  ...(Array.isArray(req.files) ? req.files : []),
+  ...(Array.isArray(req.files?.file) ? req.files.file : []),
+  ...(Array.isArray(req.files?.files) ? req.files.files : []),
+]);
+
+const validateReporteEvidenceFiles = (files) => {
+  if (files.length > 10) {
+    return 'Solo puedes adjuntar hasta 10 evidencias por reporte.';
+  }
+
+  const videoCount = files.filter((file) => file.mimetype?.startsWith('video/')).length;
+  if (videoCount > 1) {
+    return 'Solo puedes adjuntar un video por reporte.';
+  }
+
+  return null;
+};
+
 const enrichLikedByMe = async (reportes, idUsuario) => {
   const items = Array.isArray(reportes) ? reportes : [reportes].filter(Boolean);
   if (!idUsuario || items.length === 0) return reportes;
@@ -136,6 +156,12 @@ export const createReporte = async (req, res, next) => {
 
     const tipoContaminacion = tipo_contaminacion.trim().toLowerCase();
     const nivelSeveridad = normalizeEnumValue(nivel_severidad);
+    const uploadedFiles = getUploadedFiles(req);
+    const evidenceError = validateReporteEvidenceFiles(uploadedFiles);
+
+    if (evidenceError) {
+      return errorResponse(res, evidenceError, 400);
+    }
 
     if (!NIVELES_SEVERIDAD_PERMITIDOS.includes(nivelSeveridad)) {
       return errorResponse(
@@ -219,14 +245,6 @@ export const createReporte = async (req, res, next) => {
 
     await ReporteModel.updateIaAnalysis(idReporte, iaAnalysis);
     reporte = await ReporteModel.findById(idReporte);
-
-    // Guardar evidencia si se adjuntó archivo
-    const uploadedFiles = [
-      ...(req.file ? [req.file] : []),
-      ...(Array.isArray(req.files) ? req.files : []),
-      ...(Array.isArray(req.files?.file) ? req.files.file : []),
-      ...(Array.isArray(req.files?.files) ? req.files.files : []),
-    ];
 
     for (const [index, file] of uploadedFiles.entries()) {
       const tipo = file.mimetype.startsWith('video/') ? 'video' : 'imagen';
