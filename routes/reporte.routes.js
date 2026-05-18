@@ -11,8 +11,6 @@ import {
   getStatsTimeline,
   getHeatmapPoints,
   getStatsIA,
-  getZonasRiesgo,
-  getAlertasPredictivas,
   getTrendingReportes,
   toggleLikeReporte,
   analizarImagen,
@@ -24,6 +22,10 @@ import {
   addEvidenciaReporte,
   deleteEvidenciaReporte,
 } from '../src/controllers/reporte.controller.js';
+import {
+  getAlertasPredictivas,
+  getZonasRiesgo,
+} from '../src/controllers/prediccion.controller.js';
  
 
 const reporteRouter = Router();
@@ -34,7 +36,7 @@ reporteRouter.get('/stats/timeline', getStatsTimeline);
 reporteRouter.get('/stats/heatmap', getHeatmapPoints);
 reporteRouter.get('/stats/ia', verifyToken, requireRoles('admin', 'moderador'), getStatsIA);
 reporteRouter.get('/zonas-riesgo', verifyToken, requireRoles('admin', 'moderador'), getZonasRiesgo);
-reporteRouter.get('/alertas-predictivas', getAlertasPredictivas);
+reporteRouter.get('/alertas-predictivas', optionalAuth, getAlertasPredictivas);
 reporteRouter.get('/trending', optionalAuth, getTrendingReportes);
 reporteRouter.get('/export', verifyToken, requireRoles('admin', 'moderador'), exportReportes);
 reporteRouter.get('/mis-reportes', verifyToken, getMisReportes);

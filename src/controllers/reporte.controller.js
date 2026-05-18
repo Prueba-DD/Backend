@@ -11,6 +11,7 @@ import { EvidenciaModel } from '../models/evidencia.model.js';
 import { LikeModel } from '../models/like.model.js';
 import { analyzeReporte } from '../services/ia.service.js';
 import { clasificarImagen } from '../services/clasificacion.service.js';
+import { invalidatePrediccionCache } from '../services/prediccion.service.js';
 import { errorResponse, successResponse } from '../utils/response.js';
 
 const ANONYMOUS_VIEW_THROTTLE_MS = 5 * 60 * 1000;
@@ -324,6 +325,7 @@ export const createReporte = async (req, res, next) => {
       });
     }
 
+    invalidatePrediccionCache();
     return successResponse(res, { reporte }, 'Reporte creado correctamente.', 201);
   } catch (error) {
     return next(error);
@@ -687,6 +689,12 @@ export const updateReporte = async (req, res, next) => {
     }
 
     await ReporteModel.update(id, campos);
+    if (
+      Object.prototype.hasOwnProperty.call(campos, 'estado') ||
+      Object.prototype.hasOwnProperty.call(campos, 'nivel_severidad')
+    ) {
+      invalidatePrediccionCache();
+    }
     const updated = await ReporteModel.findById(id);
     return successResponse(res, { reporte: updated }, 'Reporte actualizado.');
   } catch (error) {
@@ -718,6 +726,7 @@ export const deleteReporte = async (req, res, next) => {
     }
 
     await ReporteModel.remove(id);
+    invalidatePrediccionCache();
     return successResponse(res, null, 'Reporte eliminado.');
   } catch (error) {
     return next(error);
