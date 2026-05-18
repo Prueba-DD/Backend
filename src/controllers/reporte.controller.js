@@ -4,11 +4,13 @@ import {
   NIVELES_SEVERIDAD_PERMITIDOS,
   ReporteModel,
 } from '../models/reporte.model.js';
+import fs from 'node:fs/promises';
 import { CategoriaRiesgoModel } from '../models/categoria-riesgo.model.js';
 import { UsuarioModel }   from '../models/usuario.model.js';
 import { EvidenciaModel } from '../models/evidencia.model.js';
 import { LikeModel } from '../models/like.model.js';
 import { analyzeReporte } from '../services/ia.service.js';
+import { clasificarImagen } from '../services/clasificacion.service.js';
 import { errorResponse, successResponse } from '../utils/response.js';
 
 const ANONYMOUS_VIEW_THROTTLE_MS = 5 * 60 * 1000;
@@ -111,6 +113,45 @@ const validateReporteEvidenceFiles = (files) => {
   return null;
 };
 
+const parseBooleanLike = (value) => (
+  value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true'
+);
+
+const parseAcceptedIaPayload = ({ ia_etiquetas, ia_confianza, ia_procesado }) => {
+  if (!parseBooleanLike(ia_procesado)) {
+    return { procesado: false };
+  }
+
+  let etiquetas = [];
+  if (typeof ia_etiquetas === 'string') {
+    try {
+      etiquetas = JSON.parse(ia_etiquetas);
+    } catch {
+      return { error: 'ia_etiquetas debe ser un arreglo JSON valido.' };
+    }
+  } else {
+    etiquetas = ia_etiquetas ?? [];
+  }
+
+  if (!Array.isArray(etiquetas)) {
+    return { error: 'ia_etiquetas debe ser un arreglo.' };
+  }
+
+  const confianza = Number(ia_confianza);
+  if (!Number.isFinite(confianza) || confianza < 0 || confianza > 100) {
+    return { error: 'ia_confianza debe ser un numero entre 0 y 100.' };
+  }
+
+  return {
+    procesado: true,
+    analysis: {
+      etiquetas,
+      confianza,
+      procesado: true,
+    },
+  };
+};
+
 const getAnonymousViewerKey = (req, idReporte) => {
   const ip = req.ip || req.socket?.remoteAddress || 'unknown-ip';
   const userAgent = req.get?.('user-agent') || req.headers?.['user-agent'] || 'unknown-agent';
@@ -188,9 +229,14 @@ export const createReporte = async (req, res, next) => {
     const nivelSeveridad = normalizeEnumValue(nivel_severidad);
     const uploadedFiles = getUploadedFiles(req);
     const evidenceError = validateReporteEvidenceFiles(uploadedFiles);
+    const iaPayload = parseAcceptedIaPayload({ ia_etiquetas, ia_confianza, ia_procesado });
 
     if (evidenceError) {
       return errorResponse(res, evidenceError, 400);
+    }
+
+    if (iaPayload.error) {
+      return errorResponse(res, iaPayload.error, 400);
     }
 
     if (!NIVELES_SEVERIDAD_PERMITIDOS.includes(nivelSeveridad)) {
@@ -244,20 +290,8 @@ export const createReporte = async (req, res, next) => {
     let reporte = await ReporteModel.findById(idReporte);
 
     let iaAnalysis;
-    if (String(ia_procesado) === '1') {
-      let etiquetas = [];
-      try {
-        etiquetas = typeof ia_etiquetas === 'string'
-          ? JSON.parse(ia_etiquetas)
-          : (ia_etiquetas ?? []);
-      } catch {
-        etiquetas = [];
-      }
-      iaAnalysis = {
-        etiquetas,
-        confianza: Number(ia_confianza) || 0,
-        procesado: true,
-      };
+    if (iaPayload.procesado) {
+      iaAnalysis = iaPayload.analysis;
     } else {
       iaAnalysis = analyzeReporte({
         ...reporte,
@@ -562,28 +596,18 @@ export const analizarImagen = async (req, res, next) => {
       return errorResponse(res, 'Imagen requerida.', 400);
     }
 
-    const analysis = analyzeReporte({
-      titulo: req.file.originalname || '',
-      descripcion: req.file.originalname || '',
-    });
-    const [top] = analysis.etiquetas ?? [];
-
+    const analysis = await clasificarImagen(req.file);
     return successResponse(
       res,
-      {
-        categoria: top?.label || 'otro',
-        nombre: top?.nombre || 'Otro',
-        confianza: top?.score || analysis.confianza || 0,
-        subcategoria: null,
-        confianza_subcategoria: 0,
-        severidad: null,
-        confianza_severidad: 0,
-        etiquetas: analysis.etiquetas ?? [],
-      },
+      analysis,
       'Imagen analizada correctamente.'
     );
   } catch (error) {
     return next(error);
+  } finally {
+    if (req.file?.path) {
+      await fs.unlink(req.file.path).catch(() => {});
+    }
   }
 };
 
