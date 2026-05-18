@@ -51,6 +51,34 @@ const buildReportesFilter = ({
   };
 };
 
+export const normalizeReporteIA = (reporte) => {
+  if (!reporte) return reporte;
+
+  let etiquetas = [];
+  if (Array.isArray(reporte.ia_etiquetas)) {
+    etiquetas = reporte.ia_etiquetas;
+  } else if (typeof reporte.ia_etiquetas === 'string' && reporte.ia_etiquetas.trim()) {
+    try {
+      const parsed = JSON.parse(reporte.ia_etiquetas);
+      etiquetas = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      etiquetas = [];
+    }
+  }
+  const confianza = Number(reporte.ia_confianza);
+
+  return {
+    ...reporte,
+    ia_etiquetas: etiquetas,
+    ia_confianza: reporte.ia_confianza === null || reporte.ia_confianza === undefined
+      ? null
+      : (Number.isFinite(confianza) ? confianza : null),
+    ia_procesado: reporte.ia_procesado === true ||
+      reporte.ia_procesado === 'true' ||
+      Boolean(Number(reporte.ia_procesado)),
+  };
+};
+
 export const ReporteModel = {
   
     // Lista reportes con filtros opcionales y paginación
@@ -77,6 +105,7 @@ export const ReporteModel = {
               r.tipo_contaminacion, r.subcategoria, r.estado, r.nivel_severidad,
               r.titulo, r.descripcion,
               r.latitud, r.longitud, r.direccion, r.municipio, r.departamento,
+              r.ia_etiquetas, r.ia_confianza, r.ia_procesado,
               r.votos_relevancia, r.vistas,
               r.created_at, r.updated_at,
               u.nombre AS autor_nombre, u.apellido AS autor_apellido, u.rol AS autor_rol
@@ -87,7 +116,7 @@ export const ReporteModel = {
        LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       params
     );
-    return rows;
+    return rows.map(normalizeReporteIA);
   },
 
   countAll: async ({
@@ -169,7 +198,7 @@ export const ReporteModel = {
       params
     );
 
-    return rows;
+    return rows.map(normalizeReporteIA);
   },
 
   
@@ -190,7 +219,7 @@ export const ReporteModel = {
        LIMIT 1`,
       [id_reporte]
     );
-    return rows[0] ?? null;
+    return normalizeReporteIA(rows[0] ?? null);
   },
 
   
@@ -201,7 +230,8 @@ export const ReporteModel = {
     const safeOffset = Math.max(0,               parseInt(offset, 10) || 0);
     const [rows] = await pool.execute(
       `SELECT id_reporte, uuid, tipo_contaminacion, subcategoria, estado, nivel_severidad,
-              titulo, municipio, departamento, votos_relevancia, vistas,
+              titulo, municipio, departamento, ia_etiquetas, ia_confianza, ia_procesado,
+              votos_relevancia, vistas,
               created_at, updated_at
        FROM reportes
        WHERE id_usuario = ? AND deleted_at IS NULL
@@ -209,7 +239,7 @@ export const ReporteModel = {
        LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       [id_usuario]
     );
-    return rows;
+    return rows.map(normalizeReporteIA);
   },
 
   
@@ -527,6 +557,7 @@ export const ReporteModel = {
               r.tipo_contaminacion, r.subcategoria, r.estado, r.nivel_severidad,
               r.titulo, r.descripcion,
               r.latitud, r.longitud, r.direccion, r.municipio, r.departamento,
+              r.ia_etiquetas, r.ia_confianza, r.ia_procesado,
               r.votos_relevancia, r.vistas,
               r.created_at, r.updated_at,
               (r.votos_relevancia * 3 + r.vistas + GREATEST(0, 30 - TIMESTAMPDIFF(DAY, r.created_at, NOW()))) AS trending_score
