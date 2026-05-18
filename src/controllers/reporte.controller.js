@@ -87,6 +87,22 @@ const parseAnalyticsLimit = (value, defaultValue = 12, maxValue = 60) => {
   return Math.max(1, Math.min(maxValue, parsed));
 };
 
+const enrichLikedByMe = async (reportes, idUsuario) => {
+  const items = Array.isArray(reportes) ? reportes : [reportes].filter(Boolean);
+  if (!idUsuario || items.length === 0) return reportes;
+
+  const likedSet = await ReporteModel.likedSet(
+    items.map((reporte) => reporte.id_reporte),
+    idUsuario
+  );
+  const enriched = items.map((reporte) => ({
+    ...reporte,
+    liked_by_me: likedSet.has(Number(reporte.id_reporte)),
+  }));
+
+  return Array.isArray(reportes) ? enriched : enriched[0];
+};
+
 export const createReporte = async (req, res, next) => {
   try {
     const {
@@ -250,9 +266,10 @@ export const getReportes = async (req, res, next) => {
       ReporteModel.findAll(filters),
       ReporteModel.countAll(countFilters),
     ]);
+    const enrichedReportes = await enrichLikedByMe(reportes, req.user?.sub);
 
     return successResponse(res, {
-      reportes,
+      reportes: enrichedReportes,
       total,
       limit: Math.max(1, Math.min(100, parseInt(limit, 10) || 20)),
       offset: Math.max(0, parseInt(offset, 10) || 0),
@@ -456,9 +473,10 @@ export const getAlertasPredictivas = async (req, res, next) => {
 export const getTrendingReportes = async (req, res, next) => {
   try {
     const reportes = await ReporteModel.findTrending({ limit: req.query?.limit });
+    const enrichedReportes = await enrichLikedByMe(reportes, req.user?.sub);
     return successResponse(
       res,
-      { reportes, total: reportes.length },
+      { reportes: enrichedReportes, total: reportes.length },
       'Reportes en tendencia obtenidos correctamente.'
     );
   } catch (error) {
@@ -642,6 +660,7 @@ export const getReporteById = async (req, res, next) => {
     if (req.query?.skip_view !== 'true') {
       await ReporteModel.incrementarVistas(id);
     }
+    const enrichedReporte = await enrichLikedByMe(reporte, req.user?.sub);
 
     // Fetch related data in parallel
     const [evidencias, usuario] = await Promise.all([
@@ -654,7 +673,7 @@ export const getReporteById = async (req, res, next) => {
       ? { nombre: usuario.nombre, apellido: usuario.apellido, rol: usuario.rol, avatar_url: usuario.avatar_url ?? null }
       : null;
 
-    return successResponse(res, { reporte, evidencias, autor });
+    return successResponse(res, { reporte: enrichedReporte, evidencias, autor });
   } catch (error) {
     return next(error);
   }
