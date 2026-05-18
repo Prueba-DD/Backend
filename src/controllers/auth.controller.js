@@ -22,6 +22,7 @@ import {
   consumeOAuthCallbackCode,
   createOAuthCallbackCode,
 } from '../services/oauth-callback-code.service.js';
+import { getApiPrefix } from '../config/api-prefix.config.js';
 
 /**
  * ESTRATEGIA DE AUTENTICACIÓN CON FACEBOOK
@@ -253,7 +254,7 @@ const getVerificationTokenExpiration = () => {
 
 const buildEmailVerificationLink = (token) => {
   const apiBaseUrl = process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
-  const apiPrefix = (process.env.API_PREFIX || '/api').replace(/\/+$/, '');
+  const apiPrefix = getApiPrefix();
   return `${apiBaseUrl}${apiPrefix}/auth/verify-email?token=${token}`;
 };
 
