@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { optionalAuth, verifyToken, requireRoles } from '../middlewares/auth.middleware.js';
-import { upload } from '../middlewares/upload.middleware.js';
+import { upload, uploadMultiple } from '../middlewares/upload.middleware.js';
 import { validatePositiveIdParam } from '../middlewares/validate-id.middleware.js';
 import {
   createReporte,
@@ -54,10 +54,7 @@ reporteRouter.get('/:id', validatePositiveIdParam('id'), optionalAuth, getReport
 reporteRouter.post(
   '/',
   verifyToken,
-  upload.fields([
-    { name: 'file', maxCount: 1 },
-    { name: 'files', maxCount: 5 },
-  ]),
+  uploadMultiple,
   createReporte
 );
 reporteRouter.patch('/:id', validatePositiveIdParam('id'), verifyToken, updateReporte);
