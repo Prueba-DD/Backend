@@ -10,15 +10,10 @@ import adminRouter from '../routes/admin.routes.js';
 import chatbotRouter from '../routes/chatbot.routes.js';
 import { getCorsOptions, getHelmetOptions } from './config/security.config.js';
 import { getUploadDir } from './config/upload.config.js';
+import { getApiPrefix } from './config/api-prefix.config.js';
 
 const app = express();
-const normalizeApiPrefix = (prefix = '/api') => {
-  const trimmedPrefix = prefix.trim();
-  const withLeadingSlash = trimmedPrefix.startsWith('/') ? trimmedPrefix : `/${trimmedPrefix}`;
-  return withLeadingSlash.replace(/\/+$/, '') || '/api';
-};
-
-const apiPrefix = normalizeApiPrefix(process.env.API_PREFIX);
+const apiPrefix = getApiPrefix();
 
 app.use(helmet(getHelmetOptions()));
 app.use(cors(getCorsOptions()));

@@ -68,7 +68,7 @@ npm run test:email   # Ejecuta prueba SMTP, requiere configuracion de email
 | `FACEBOOK_CALLBACK_URL` | Callback backend de Facebook OAuth. |
 | `FACEBOOK_GRAPH_API_VERSION` | Version de Facebook Graph API. |
 | `FACEBOOK_CALLBACK_RESPONSE` | Modo de respuesta del callback de Facebook. |
-| `API_PREFIX` | Prefijo base de la API. Por defecto `/api`. |
+| `API_PREFIX` | Prefijo base opcional de la API. Por defecto vacio para desarrollo con Vite. |
 | `API_PUBLIC_URL` | URL publica del backend para enlaces enviados por email. |
 
 ## Estructura real
@@ -174,13 +174,17 @@ El backend incluye:
 
 ## Prefijo de API
 
-Todas las rutas se montan bajo `API_PREFIX`, que por defecto es `/api`.
+Por defecto `API_PREFIX` es vacio y las rutas se montan sin prefijo:
 
 Ejemplo:
 
 ```text
-http://localhost:3000/api/auth/login
+http://localhost:3000/auth/login
 ```
+
+En desarrollo, el frontend puede seguir llamando `/api/*` porque Vite reescribe ese prefijo antes de enviar la peticion al backend. Por ejemplo, `/api/reportes` en el navegador llega al backend como `/reportes`.
+
+Si necesitas publicar el backend directamente bajo `/api`, define `API_PREFIX=/api`. No se montan ambos prefijos al mismo tiempo.
 
 ## Rutas
 
@@ -188,57 +192,57 @@ http://localhost:3000/api/auth/login
 
 | Metodo | Ruta | Descripcion |
 | --- | --- | --- |
-| `GET` | `/api/health` | Verifica servidor y conexion a base de datos. |
+| `GET` | `/health` | Verifica servidor y conexion a base de datos. |
 
 ### Autenticacion
 
 | Metodo | Ruta | Protegida | Descripcion |
 | --- | --- | --- | --- |
-| `POST` | `/api/auth/register` | No | Registro de usuario. |
-| `POST` | `/api/auth/login` | No | Inicio de sesion con email y contrasena. |
-| `POST` | `/api/auth/refresh` | No | Renueva access token y rota refresh token. |
-| `POST` | `/api/auth/oauth/exchange` | No | Canjea codigo temporal OAuth por tokens backend. |
-| `POST` | `/api/auth/logout` | Parcial | Logout individual con refresh token; logout global requiere JWT. |
-| `GET` | `/api/auth/verify-email` | No | Verifica email por token de enlace. |
-| `POST` | `/api/auth/forgot-password` | No | Solicita recuperacion de contrasena. |
-| `POST` | `/api/auth/reset-password` | No | Restablece contrasena con token. |
-| `GET` | `/api/auth/perfil` | Si | Obtiene perfil del usuario autenticado. |
-| `PATCH` | `/api/auth/perfil` | Si | Actualiza perfil. |
-| `PATCH` | `/api/auth/cambiar-contrasena` | Si | Cambia contrasena y revoca refresh tokens. |
-| `PATCH` | `/api/auth/notificaciones` | Si | Actualiza preferencias de notificaciones. |
-| `POST` | `/api/auth/enviar-verificacion` | Si | Envia OTP de verificacion de email. |
-| `POST` | `/api/auth/verificar-email` | Si | Verifica OTP de email. |
-| `GET` | `/api/auth/google/url` | No | Genera URL de login con Google. |
-| `POST` | `/api/auth/google/login` | No | Login con `id_token` de Google. |
-| `GET` | `/api/auth/google/callback` | No | Callback OAuth de Google. |
-| `GET` | `/api/auth/facebook/url` | No | Genera URL de login con Facebook. |
-| `GET` | `/api/auth/facebook/callback` | No | Callback OAuth de Facebook. |
+| `POST` | `/auth/register` | No | Registro de usuario. |
+| `POST` | `/auth/login` | No | Inicio de sesion con email y contrasena. |
+| `POST` | `/auth/refresh` | No | Renueva access token y rota refresh token. |
+| `POST` | `/auth/oauth/exchange` | No | Canjea codigo temporal OAuth por tokens backend. |
+| `POST` | `/auth/logout` | Parcial | Logout individual con refresh token; logout global requiere JWT. |
+| `GET` | `/auth/verify-email` | No | Verifica email por token de enlace. |
+| `POST` | `/auth/forgot-password` | No | Solicita recuperacion de contrasena. |
+| `POST` | `/auth/reset-password` | No | Restablece contrasena con token. |
+| `GET` | `/auth/perfil` | Si | Obtiene perfil del usuario autenticado. |
+| `PATCH` | `/auth/perfil` | Si | Actualiza perfil. |
+| `PATCH` | `/auth/cambiar-contrasena` | Si | Cambia contrasena y revoca refresh tokens. |
+| `PATCH` | `/auth/notificaciones` | Si | Actualiza preferencias de notificaciones. |
+| `POST` | `/auth/enviar-verificacion` | Si | Envia OTP de verificacion de email. |
+| `POST` | `/auth/verificar-email` | Si | Verifica OTP de email. |
+| `GET` | `/auth/google/url` | No | Genera URL de login con Google. |
+| `POST` | `/auth/google/login` | No | Login con `id_token` de Google. |
+| `GET` | `/auth/google/callback` | No | Callback OAuth de Google. |
+| `GET` | `/auth/facebook/url` | No | Genera URL de login con Facebook. |
+| `GET` | `/auth/facebook/callback` | No | Callback OAuth de Facebook. |
 
 ### Reportes
 
 | Metodo | Ruta | Protegida | Descripcion |
 | --- | --- | --- | --- |
-| `GET` | `/api/reportes/stats` | No | Estadisticas generales de reportes. |
-| `GET` | `/api/reportes/stats/categoria` | No | Estadisticas por categoria. |
-| `GET` | `/api/reportes/stats/timeline` | No | Serie temporal de reportes. |
-| `GET` | `/api/reportes/stats/heatmap` | No | Puntos para heatmap. |
-| `GET` | `/api/reportes/export` | Si, admin o moderador | Exporta reportes. |
-| `GET` | `/api/reportes/mis-reportes` | Si | Lista reportes del usuario autenticado. |
-| `GET` | `/api/reportes` | No | Lista reportes con filtros. |
-| `GET` | `/api/reportes/:id` | No | Obtiene un reporte por ID. |
-| `POST` | `/api/reportes` | Si | Crea reporte, con archivo opcional en campo `file`. |
-| `PATCH` | `/api/reportes/:id` | Si | Actualiza reporte. |
-| `DELETE` | `/api/reportes/:id` | Si | Elimina reporte logicamente. |
+| `GET` | `/reportes/stats` | No | Estadisticas generales de reportes. |
+| `GET` | `/reportes/stats/categoria` | No | Estadisticas por categoria. |
+| `GET` | `/reportes/stats/timeline` | No | Serie temporal de reportes. |
+| `GET` | `/reportes/stats/heatmap` | No | Puntos para heatmap. |
+| `GET` | `/reportes/export` | Si, admin o moderador | Exporta reportes. |
+| `GET` | `/reportes/mis-reportes` | Si | Lista reportes del usuario autenticado. |
+| `GET` | `/reportes` | No | Lista reportes con filtros. |
+| `GET` | `/reportes/:id` | No | Obtiene un reporte por ID. |
+| `POST` | `/reportes` | Si | Crea reporte, con archivo opcional en campo `file`. |
+| `PATCH` | `/reportes/:id` | Si | Actualiza reporte. |
+| `DELETE` | `/reportes/:id` | Si | Elimina reporte logicamente. |
 
 ### Categorias de riesgo
 
 | Metodo | Ruta | Descripcion |
 | --- | --- | --- |
-| `GET` | `/api/categorias/estadisticas/resumen` | Resumen por categorias. |
-| `GET` | `/api/categorias/estadisticas/por-severidad` | Estadisticas por severidad. |
-| `GET` | `/api/categorias` | Lista categorias activas. |
-| `GET` | `/api/categorias/:codigo/reportes` | Reportes de una categoria. |
-| `GET` | `/api/categorias/:codigo` | Detalle de categoria. |
+| `GET` | `/categorias/estadisticas/resumen` | Resumen por categorias. |
+| `GET` | `/categorias/estadisticas/por-severidad` | Estadisticas por severidad. |
+| `GET` | `/categorias` | Lista categorias activas. |
+| `GET` | `/categorias/:codigo/reportes` | Reportes de una categoria. |
+| `GET` | `/categorias/:codigo` | Detalle de categoria. |
 
 ### Administracion
 
@@ -246,12 +250,12 @@ Todas las rutas de administracion requieren JWT con rol `admin`.
 
 | Metodo | Ruta | Descripcion |
 | --- | --- | --- |
-| `GET` | `/api/admin/usuarios/stats` | Estadisticas de usuarios y reportes. |
-| `GET` | `/api/admin/usuarios` | Lista usuarios. |
-| `GET` | `/api/admin/usuarios/:id` | Obtiene usuario por ID. |
-| `PATCH` | `/api/admin/usuarios/:id/rol` | Cambia rol de usuario. |
-| `PATCH` | `/api/admin/usuarios/:id/estado` | Activa o desactiva usuario. |
-| `DELETE` | `/api/admin/usuarios/:id` | Elimina usuario logicamente. |
+| `GET` | `/admin/usuarios/stats` | Estadisticas de usuarios y reportes. |
+| `GET` | `/admin/usuarios` | Lista usuarios. |
+| `GET` | `/admin/usuarios/:id` | Obtiene usuario por ID. |
+| `PATCH` | `/admin/usuarios/:id/rol` | Cambia rol de usuario. |
+| `PATCH` | `/admin/usuarios/:id/estado` | Activa o desactiva usuario. |
+| `DELETE` | `/admin/usuarios/:id` | Elimina usuario logicamente. |
 
 ## OAuth
 
@@ -259,12 +263,12 @@ El backend soporta Google y Facebook.
 
 Flujo recomendado con callbacks:
 
-1. El frontend solicita `/api/auth/google/url` o `/api/auth/facebook/url`.
+1. El frontend solicita `/api/auth/google/url` o `/api/auth/facebook/url` en desarrollo con Vite, que reescribe a `/auth/google/url` o `/auth/facebook/url` en el backend.
 2. El usuario autentica con el proveedor.
 3. El proveedor redirige al callback backend.
 4. El backend crea o vincula el usuario.
 5. El backend redirige al frontend con un codigo temporal en el fragmento `#oauth_code=...`.
-6. El frontend canjea ese codigo en `/api/auth/oauth/exchange`.
+6. El frontend canjea ese codigo en `/api/auth/oauth/exchange`; Vite lo reescribe a `/auth/oauth/exchange`.
 
 Los access tokens y refresh tokens del backend no se envian por query string.
 
@@ -289,7 +293,7 @@ Los archivos se sirven desde `/uploads`.
 
 ## Preferencias de notificaciones
 
-El endpoint `PATCH /api/auth/notificaciones` persiste las preferencias en `usuarios.notification_preferences`.
+El endpoint `PATCH /auth/notificaciones` persiste las preferencias en `usuarios.notification_preferences`.
 
 Estructura soportada:
 
