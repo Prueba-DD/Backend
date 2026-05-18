@@ -570,6 +570,24 @@ export const ReporteModel = {
     }
   },
 
+  likedSet: async (id_reportes = [], id_usuario) => {
+    const ids = [...new Set(id_reportes.map(Number).filter(Number.isFinite))];
+
+    if (!id_usuario || ids.length === 0 || !await tableExists('reporte_likes')) {
+      return new Set();
+    }
+
+    const placeholders = ids.map(() => '?').join(', ');
+    const [rows] = await pool.execute(
+      `SELECT id_reporte
+       FROM reporte_likes
+       WHERE id_usuario = ? AND id_reporte IN (${placeholders})`,
+      [id_usuario, ...ids]
+    );
+
+    return new Set(rows.map((row) => Number(row.id_reporte)));
+  },
+
   findTrending: async ({ limit = 12 } = {}) => {
     const safeLimit = Math.max(1, Math.min(50, parseInt(limit, 10) || 12));
     const [rows] = await pool.execute(

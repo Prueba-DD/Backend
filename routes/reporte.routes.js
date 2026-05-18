@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyToken, requireRoles } from '../middlewares/auth.middleware.js';
+import { optionalAuth, verifyToken, requireRoles } from '../middlewares/auth.middleware.js';
 import { upload } from '../middlewares/upload.middleware.js';
 import { validatePositiveIdParam } from '../middlewares/validate-id.middleware.js';
 import {
@@ -35,11 +35,11 @@ reporteRouter.get('/stats/heatmap', getHeatmapPoints);
 reporteRouter.get('/stats/ia', verifyToken, requireRoles('admin', 'moderador'), getStatsIA);
 reporteRouter.get('/zonas-riesgo', verifyToken, requireRoles('admin', 'moderador'), getZonasRiesgo);
 reporteRouter.get('/alertas-predictivas', getAlertasPredictivas);
-reporteRouter.get('/trending', getTrendingReportes);
+reporteRouter.get('/trending', optionalAuth, getTrendingReportes);
 reporteRouter.get('/export', verifyToken, requireRoles('admin', 'moderador'), exportReportes);
 reporteRouter.get('/mis-reportes', verifyToken, getMisReportes);
 reporteRouter.post('/analizar-imagen', verifyToken, upload.single('imagen'), analizarImagen);
-reporteRouter.get('/',      getReportes);
+reporteRouter.get('/', optionalAuth, getReportes);
 reporteRouter.post('/:id/like', validatePositiveIdParam('id'), verifyToken, toggleLikeReporte);
 reporteRouter.get('/:id/evidencias', validatePositiveIdParam('id'), verifyToken, listEvidenciasReporte);
 reporteRouter.post('/:id/evidencias', validatePositiveIdParam('id'), verifyToken, upload.single('file'), addEvidenciaReporte);
@@ -50,7 +50,7 @@ reporteRouter.delete(
   verifyToken,
   deleteEvidenciaReporte
 );
-reporteRouter.get('/:id',   validatePositiveIdParam('id'), getReporteById);
+reporteRouter.get('/:id', validatePositiveIdParam('id'), optionalAuth, getReporteById);
 reporteRouter.post(
   '/',
   verifyToken,
