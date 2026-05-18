@@ -13,6 +13,7 @@ export const construirContextoChatbot = async ({ user, lat, lng } = {}) => {
   const userId = user?.sub;
   const latitude = toNumber(lat);
   const longitude = toNumber(lng);
+  const hasLocation = latitude !== null && longitude !== null;
 
   const [global, usuario, alertasPayload] = await Promise.all([
     ReporteModel.getStats().catch(() => ({})),
@@ -22,14 +23,16 @@ export const construirContextoChatbot = async ({ user, lat, lng } = {}) => {
         ReporteModel.countByUsuario(userId).catch(() => 0),
       ]).then(([reportes, total]) => ({ reportes, total_reportes: Number(total) || 0 }))
       : Promise.resolve(null),
-    calcularAlertasPredictivas(parseAlertasParams({
-      lat: latitude ?? undefined,
-      lng: longitude ?? undefined,
-      radio_km: latitude !== null && longitude !== null ? 25 : undefined,
-      limite: 3,
-      min_score: 0,
-      nivel_min: 'medio',
-    })).catch(() => ({ alertas: [] })),
+    hasLocation
+      ? calcularAlertasPredictivas(parseAlertasParams({
+        lat: latitude,
+        lng: longitude,
+        radio_km: 25,
+        limite: 3,
+        min_score: 0,
+        nivel_min: 'medio',
+      })).catch(() => ({ alertas: [] }))
+      : Promise.resolve({ alertas: [] }),
   ]);
 
   return {

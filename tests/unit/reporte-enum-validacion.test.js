@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { updateReporte } from '../../src/controllers/reporte.controller.js';
+import { NotificacionModel } from '../../src/models/notificacion.model.js';
 import { ReporteModel } from '../../src/models/reporte.model.js';
 
 const createResponse = () => ({
@@ -29,6 +30,7 @@ test('updateReporte acepta estado y nivel_severidad validos normalizados', async
     estado: 'pendiente',
   }));
   t.mock.method(ReporteModel, 'update', async () => true);
+  t.mock.method(NotificacionModel, 'create', async () => ({ id_notificacion: 1, uuid: 'notif-1' }));
 
   const req = createModeratorRequest({
     estado: ' En_Revision ',
