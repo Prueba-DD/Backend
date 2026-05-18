@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import jwt from 'jsonwebtoken';
 import { optionalAuth } from '../../middlewares/auth.middleware.js';
+import { LikeModel } from '../../src/models/like.model.js';
 import { ReporteModel } from '../../src/models/reporte.model.js';
 
 process.env.API_PREFIX = '';
@@ -101,7 +102,7 @@ test('GET /reportes responde anonimo y enriquece liked_by_me con token valido', 
   ];
   t.mock.method(ReporteModel, 'findAll', async () => reportes);
   t.mock.method(ReporteModel, 'countAll', async () => 2);
-  t.mock.method(ReporteModel, 'likedSet', async (_ids, idUsuario) => (
+  t.mock.method(LikeModel, 'likedSet', async (_ids, idUsuario) => (
     Number(idUsuario) === 21 ? new Set([10]) : new Set()
   ));
 

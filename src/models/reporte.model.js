@@ -320,6 +320,26 @@ export const ReporteModel = {
     );
   },
 
+  registrarVistaUsuario: async (id_reporte, id_usuario) => {
+    if (!id_usuario || !await tableExists('reporte_vistas')) {
+      await ReporteModel.incrementarVistas(id_reporte);
+      return true;
+    }
+
+    const [result] = await pool.execute(
+      `INSERT IGNORE INTO reporte_vistas (id_reporte, id_usuario)
+       VALUES (?, ?)`,
+      [id_reporte, id_usuario]
+    );
+
+    if (result.affectedRows === 0) {
+      return false;
+    }
+
+    await ReporteModel.incrementarVistas(id_reporte);
+    return true;
+  },
+
   
     // Soft-delete de un reporte
   
@@ -500,94 +520,6 @@ export const ReporteModel = {
     return rows;
   },
 
-  toggleLike: async (id_reporte, id_usuario) => {
-    if (!await tableExists('reporte_likes')) {
-      await ReporteModel.incrementarVistas(id_reporte);
-      const reporte = await ReporteModel.findById(id_reporte);
-      return {
-        liked: false,
-        votos_relevancia: Number(reporte?.votos_relevancia) || 0,
-      };
-    }
-
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
-
-      const [existingRows] = await connection.execute(
-        `SELECT id_like
-         FROM reporte_likes
-         WHERE id_reporte = ? AND id_usuario = ?
-         LIMIT 1
-         FOR UPDATE`,
-        [id_reporte, id_usuario]
-      );
-
-      const liked = existingRows.length === 0;
-      if (liked) {
-        await connection.execute(
-          `INSERT INTO reporte_likes (id_reporte, id_usuario)
-           VALUES (?, ?)`,
-          [id_reporte, id_usuario]
-        );
-        await connection.execute(
-          `UPDATE reportes
-           SET votos_relevancia = votos_relevancia + 1
-           WHERE id_reporte = ? AND deleted_at IS NULL`,
-          [id_reporte]
-        );
-      } else {
-        await connection.execute(
-          `DELETE FROM reporte_likes
-           WHERE id_reporte = ? AND id_usuario = ?`,
-          [id_reporte, id_usuario]
-        );
-        await connection.execute(
-          `UPDATE reportes
-           SET votos_relevancia = GREATEST(votos_relevancia - 1, 0)
-           WHERE id_reporte = ? AND deleted_at IS NULL`,
-          [id_reporte]
-        );
-      }
-
-      const [[row]] = await connection.execute(
-        `SELECT votos_relevancia
-         FROM reportes
-         WHERE id_reporte = ?`,
-        [id_reporte]
-      );
-
-      await connection.commit();
-      return {
-        liked,
-        votos_relevancia: Number(row?.votos_relevancia) || 0,
-      };
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  },
-
-  likedSet: async (id_reportes = [], id_usuario) => {
-    const ids = [...new Set(id_reportes.map(Number).filter(Number.isFinite))];
-
-    if (!id_usuario || ids.length === 0 || !await tableExists('reporte_likes')) {
-      return new Set();
-    }
-
-    const placeholders = ids.map(() => '?').join(', ');
-    const [rows] = await pool.execute(
-      `SELECT id_reporte
-       FROM reporte_likes
-       WHERE id_usuario = ? AND id_reporte IN (${placeholders})`,
-      [id_usuario, ...ids]
-    );
-
-    return new Set(rows.map((row) => Number(row.id_reporte)));
-  },
-
   findTrending: async ({ limit = 12 } = {}) => {
     const safeLimit = Math.max(1, Math.min(50, parseInt(limit, 10) || 12));
     const [rows] = await pool.execute(
@@ -604,7 +536,10 @@ export const ReporteModel = {
        LIMIT ${safeLimit}`
     );
 
-    return rows;
+    return rows.map((row) => ({
+      ...row,
+      trending_score: Number(row.trending_score) || 0,
+    }));
   },
 
   getStatsIA: async ({ dias = 30 } = {}) => {

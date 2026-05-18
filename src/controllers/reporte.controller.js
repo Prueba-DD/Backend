@@ -7,8 +7,12 @@ import {
 import { CategoriaRiesgoModel } from '../models/categoria-riesgo.model.js';
 import { UsuarioModel }   from '../models/usuario.model.js';
 import { EvidenciaModel } from '../models/evidencia.model.js';
+import { LikeModel } from '../models/like.model.js';
 import { analyzeReporte } from '../services/ia.service.js';
 import { errorResponse, successResponse } from '../utils/response.js';
+
+const ANONYMOUS_VIEW_THROTTLE_MS = 5 * 60 * 1000;
+const anonymousViewThrottle = new Map();
 
 const parseCoordinate = (value, { field, min, max }) => {
   if (value === undefined || value === null || value === '') {
@@ -107,11 +111,37 @@ const validateReporteEvidenceFiles = (files) => {
   return null;
 };
 
+const getAnonymousViewerKey = (req, idReporte) => {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown-ip';
+  const userAgent = req.get?.('user-agent') || req.headers?.['user-agent'] || 'unknown-agent';
+  return `${idReporte}:${ip}:${userAgent}`;
+};
+
+const registerReporteView = async (req, idReporte) => {
+  if (req.query?.skip_view === 'true') return false;
+
+  if (req.user?.sub) {
+    return ReporteModel.registrarVistaUsuario(idReporte, req.user.sub);
+  }
+
+  const now = Date.now();
+  const key = getAnonymousViewerKey(req, idReporte);
+  const lastSeenAt = anonymousViewThrottle.get(key) || 0;
+
+  if (now - lastSeenAt < ANONYMOUS_VIEW_THROTTLE_MS) {
+    return false;
+  }
+
+  anonymousViewThrottle.set(key, now);
+  await ReporteModel.incrementarVistas(idReporte);
+  return true;
+};
+
 const enrichLikedByMe = async (reportes, idUsuario) => {
   const items = Array.isArray(reportes) ? reportes : [reportes].filter(Boolean);
   if (!idUsuario || items.length === 0) return reportes;
 
-  const likedSet = await ReporteModel.likedSet(
+  const likedSet = await LikeModel.likedSet(
     items.map((reporte) => reporte.id_reporte),
     idUsuario
   );
@@ -514,7 +544,7 @@ export const toggleLikeReporte = async (req, res, next) => {
       return errorResponse(res, 'No puedes reaccionar a tu propio reporte.', 400);
     }
 
-    const result = await ReporteModel.toggleLike(id, idUsuario);
+    const result = await LikeModel.toggle(id, idUsuario);
 
     return successResponse(
       res,
@@ -675,9 +705,7 @@ export const getReporteById = async (req, res, next) => {
     const id = Number(req.params.id);
     const reporte = await ReporteModel.findById(id);
     if (!reporte) return errorResponse(res, 'Reporte no encontrado.', 404);
-    if (req.query?.skip_view !== 'true') {
-      await ReporteModel.incrementarVistas(id);
-    }
+    await registerReporteView(req, id);
     const enrichedReporte = await enrichLikedByMe(reporte, req.user?.sub);
 
     // Fetch related data in parallel
