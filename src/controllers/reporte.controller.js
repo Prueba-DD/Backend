@@ -13,6 +13,7 @@ import { analyzeReporte } from '../services/ia.service.js';
 import { clasificarImagen } from '../services/clasificacion.service.js';
 import { invalidatePrediccionCache } from '../services/prediccion.service.js';
 import { errorResponse, successResponse } from '../utils/response.js';
+import { crearNotificacion } from './notificacion.controller.js';
 
 const ANONYMOUS_VIEW_THROTTLE_MS = 5 * 60 * 1000;
 const anonymousViewThrottle = new Map();
@@ -46,6 +47,8 @@ const normalizeEnumValue = (value) => (
 const buildAllowedValuesMessage = (field, allowedValues) => (
   `${field} debe ser uno de: ${allowedValues.join(', ')}.`
 );
+
+const buildReporteLink = (reporte) => `/reports/${reporte.uuid ?? reporte.id_reporte}`;
 
 const canManageReporteEvidence = (reporte, user) => {
   if (!reporte || !user) {
@@ -696,6 +699,43 @@ export const updateReporte = async (req, res, next) => {
       invalidatePrediccionCache();
     }
     const updated = await ReporteModel.findById(id);
+
+    if (isMod && reporte.id_usuario && Number(reporte.id_usuario) !== Number(sub)) {
+      const cambioEstado = (
+        Object.prototype.hasOwnProperty.call(campos, 'estado') &&
+        campos.estado !== reporte.estado
+      );
+      const nuevoComentario = (
+        Object.prototype.hasOwnProperty.call(campos, 'comentario_moderacion') &&
+        String(campos.comentario_moderacion ?? '').trim().length > 0 &&
+        campos.comentario_moderacion !== reporte.comentario_moderacion
+      );
+
+      if (cambioEstado) {
+        crearNotificacion({
+          id_usuario: reporte.id_usuario,
+          tipo: 'reporte_estado',
+          titulo: `Tu reporte cambio a "${campos.estado}"`,
+          mensaje: `El reporte "${reporte.titulo}" ahora esta en estado: ${campos.estado}.`,
+          referencia_tipo: 'reporte',
+          referencia_uuid: reporte.uuid,
+          link: buildReporteLink(reporte),
+        });
+      }
+
+      if (nuevoComentario) {
+        crearNotificacion({
+          id_usuario: reporte.id_usuario,
+          tipo: 'reporte_comentario',
+          titulo: 'Comentario de moderacion en tu reporte',
+          mensaje: String(campos.comentario_moderacion).slice(0, 240),
+          referencia_tipo: 'reporte',
+          referencia_uuid: reporte.uuid,
+          link: buildReporteLink(reporte),
+        });
+      }
+    }
+
     return successResponse(res, { reporte: updated }, 'Reporte actualizado.');
   } catch (error) {
     return next(error);
