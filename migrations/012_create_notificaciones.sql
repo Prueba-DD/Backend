@@ -1,3 +1,4 @@
+-- Migracion: notificaciones in-app por usuario
 CREATE TABLE IF NOT EXISTS notificaciones (
   id_notificacion BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   uuid VARCHAR(36) UNIQUE NOT NULL,
